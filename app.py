@@ -220,7 +220,8 @@ def subscription_links():
     clash = base + url_for('subscription_content', kind='clash', token=token.token)
     shadow = base + url_for('subscription_content', kind='shadowrocket', token=token.token)
     response = jsonify(clash=clash, shadowrocket=shadow,
-                       shadowrocket_import='shadowrocket://add/' + quote(shadow, safe=''))
+                       shadowrocket_import='shadowrocket://add/' + quote(shadow, safe=''),
+                       flclash_import='clash://install-config?url=' + quote(clash, safe=''))
     response.headers['Cache-Control'] = 'no-store'
     return response
 

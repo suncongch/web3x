@@ -161,6 +161,7 @@
         <p>FlClash：<a id="clash-link" rel="noreferrer"></a></p>
         <p>Shadowrocket：<a id="shadowrocket-link" rel="noreferrer"></a></p>
         <div class="subscription-actions">
+            <a id="flclash-import" rel="noreferrer">在 FlClash 中打开</a>
             <a id="shadowrocket-import" rel="noreferrer">在 Shadowrocket 中打开</a>
         </div>
     </div>
@@ -225,9 +226,10 @@
             const shadowrocket = document.getElementById('shadowrocket-link');
             clash.href = clash.textContent = data.clash;
             shadowrocket.href = shadowrocket.textContent = data.shadowrocket;
+            document.getElementById('flclash-import').href = data.flclash_import;
             document.getElementById('shadowrocket-import').href = data.shadowrocket_import;
             document.getElementById('subscription-links').hidden = false;
-            message.textContent = '请复制订阅链接到对应客户端，或直接打开 Shadowrocket。';
+            message.textContent = '请复制订阅链接到对应客户端，或直接在 FlClash、Shadowrocket 中打开。';
         } catch (error) {
             message.textContent = error.message || '获取订阅链接失败，请稍后重试。';
         } finally {
