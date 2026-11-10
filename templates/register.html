@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - Web3X</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .register-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .register-container h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .register-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .register-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .register-btn:active {
+            transform: translateY(0);
+        }
+
+        .register-btn:disabled {
+            cursor: wait;
+            opacity: 0.75;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            vertical-align: -3px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .spinner[hidden] {
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .spinner { animation: none; }
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #4a5568;
+        }
+
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .login-link a:hover {
+            color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>📝 注册</h1>
+        
+        {% if error %}
+        <div class="error-message show">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" id="register-form">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" required placeholder="请输入用户名">
+            </div>
+
+            <div class="form-group">
+                <label for="email">邮箱（选填）</label>
+                <input type="email" id="email" name="email" maxlength="120" placeholder="不填则自动生成客户端邮箱">
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" required placeholder="请输入密码">
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">确认密码</label>
+                <input type="password" id="confirm_password" name="confirm_password" required placeholder="请再次输入密码">
+            </div>
+
+            <button type="submit" class="register-btn" id="register-btn">
+                <span class="spinner" id="register-spinner" hidden aria-hidden="true"></span><span id="register-label">注册</span>
+            </button>
+            <span id="register-status" role="status" aria-live="polite"></span>
+        </form>
+
+        <div class="login-link">
+            已有账户？ <a href="{{ url_for('login') }}">点击登录</a>
+        </div>
+    </div>
+    <script>
+        const registerForm = document.getElementById('register-form');
+        const registerButton = document.getElementById('register-btn');
+        const registerSpinner = document.getElementById('register-spinner');
+        const registerLabel = document.getElementById('register-label');
+        const registerStatus = document.getElementById('register-status');
+
+        registerForm.addEventListener('submit', function(event) {
+            if (registerButton.disabled) {
+                event.preventDefault();
+                return;
+            }
+            registerButton.disabled = true;
+            registerSpinner.hidden = false;
+            registerLabel.textContent = '注册中...';
+            registerStatus.textContent = '正在注册，请稍候。';
+        });
+
+        window.addEventListener('pageshow', function() {
+            registerButton.disabled = false;
+            registerSpinner.hidden = true;
+            registerLabel.textContent = '注册';
+            registerStatus.textContent = '';
+        });
+    </script>
+</body>
+</html>

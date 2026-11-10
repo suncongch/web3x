@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Web3X - 网站{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #4a5568;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-header h2 {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .user-info {
+            color: #cbd5e0;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .sidebar-nav li {
+            margin: 0;
+        }
+
+        .sidebar-nav a {
+            display: block;
+            padding: 15px 20px;
+            color: #cbd5e0;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-nav a:hover {
+            background-color: #4a5568;
+            color: #fff;
+            border-left-color: #667eea;
+        }
+
+        .sidebar-nav a.active {
+            background-color: #667eea;
+            color: #fff;
+            border-left-color: #fff;
+        }
+
+        .logout-btn {
+            display: block;
+            margin: 20px;
+            padding: 10px 15px;
+            background: #e53e3e;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.3s ease;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 40px;
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .container {
+                flex-direction: column;
+            }
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Web3X</h2>
+                <div class="user-info">欢迎, {{ username }}</div>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}class="active"{% endif %}>🏠 主页</a></li>
+                <li><a href="{{ url_for('purchase') }}" {% if request.endpoint == 'purchase' %}class="active"{% endif %}>🛒 购买</a></li>
+                <li><a href="{{ url_for('tutorial') }}" {% if request.endpoint == 'tutorial' %}class="active"{% endif %}>📚 教程</a></li>
+                <li><a href="{{ url_for('support') }}" {% if request.endpoint == 'support' %}class="active"{% endif %}>💬 客服</a></li>
+            </ul>
+            <a href="{{ url_for('logout') }}" class="logout-btn">退出登录</a>
+        </div>
+
+        <div class="main-content">
+            <div class="content-card">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

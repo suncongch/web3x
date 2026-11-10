@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板 - Web3X{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    .dashboard-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease;
+        text-align: center;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .dashboard-number {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .dashboard-label {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+
+    .welcome-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 10px;
+        margin-bottom: 40px;
+        text-align: center;
+    }
+
+    .welcome-banner h1 {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+
+    .welcome-banner p {
+        font-size: 16px;
+        opacity: 0.9;
+    }
+
+    .recent-activity {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 40px;
+    }
+
+    .recent-activity h2 {
+        padding: 20px;
+        background: #f7fafc;
+        border-bottom: 1px solid #e2e8f0;
+        margin: 0;
+    }
+
+    .activity-list {
+        padding: 20px;
+    }
+
+    .activity-item {
+        padding: 15px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        font-size: 24px;
+        min-width: 24px;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 5px;
+    }
+
+    .activity-time {
+        font-size: 13px;
+        color: #718096;
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 40px;
+    }
+
+    .action-btn {
+        background: white;
+        border: 2px solid #e2e8f0;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .action-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+        transform: translateY(-3px);
+    }
+
+    .action-icon {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+
+    .action-text {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+        .welcome-banner h1 {
+            font-size: 24px;
+        }
+
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(category_filter=['warning']) %}
+    {% for message in messages %}
+    <div role="alert" style="background: #fff3cd; color: #664d03; padding: 15px; border-radius: 8px; margin-bottom: 20px;">{{ message }}</div>
+    {% endfor %}
+{% endwith %}
+<div class="welcome-banner">
+    <h1>👋 欢迎，{{ username }}！</h1>
+    <p>这是您的个人仪表板。管理您的账户、查看订单和探索新功能。</p>
+</div>
+
+{% include "_current_product.html" %}
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="dashboard-number">{{ 1 if current_order else 0 }}</div>
+        <div class="dashboard-label">已购买产品</div>
+    </div>
+    <div class="dashboard-card">
+        <div class="dashboard-number">8</div>
+        <div class="dashboard-label">已完成教程</div>
+    </div>
+    <div class="dashboard-card">
+        <div class="dashboard-number">3</div>
+        <div class="dashboard-label">未读消息</div>
+    </div>
+    <div class="dashboard-card">
+        <div class="dashboard-number">95%</div>
+        <div class="dashboard-label">账户完成度</div>
+    </div>
+</div>
+
+<div class="quick-actions">
+    <a href="{{ url_for('purchase') }}" class="action-btn">
+        <div class="action-icon">🛒</div>
+        <div class="action-text">浏览购买</div>
+    </a>
+    <a href="{{ url_for('tutorial') }}" class="action-btn">
+        <div class="action-icon">📚</div>
+        <div class="action-text">查看教程</div>
+    </a>
+    <a href="{{ url_for('support') }}" class="action-btn">
+        <div class="action-icon">💬</div>
+        <div class="action-text">获取支持</div>
+    </a>
+    <a href="{{ url_for('home') }}" class="action-btn">
+        <div class="action-icon">🏠</div>
+        <div class="action-text">返回主页</div>
+    </a>
+</div>
+
+<div class="recent-activity">
+    <h2>📊 最近活动</h2>
+    <div class="activity-list">
+        <div class="activity-item">
+            <div class="activity-icon">🎓</div>
+            <div class="activity-content">
+                <div class="activity-title">完成了教程：Solidity编程基础</div>
+                <div class="activity-time">2小时前</div>
+            </div>
+        </div>
+        {% if current_order %}
+        <div class="activity-item">
+            <div class="activity-icon">🛒</div>
+            <div class="activity-content">
+                <div class="activity-title">购买了 {{ current_order.product_name }}</div>
+                <div class="activity-time">{{ current_order.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+        </div>
+        {% endif %}
+        <div class="activity-item">
+            <div class="activity-icon">💬</div>
+            <div class="activity-content">
+                <div class="activity-title">收到了客服回复</div>
+                <div class="activity-time">3天前</div>
+            </div>
+        </div>
+        <div class="activity-item">
+            <div class="activity-icon">✅</div>
+            <div class="activity-content">
+                <div class="activity-title">账户升级到高级会员</div>
+                <div class="activity-time">1周前</div>
+            </div>
+        </div>
+        <div class="activity-item">
+            <div class="activity-icon">🔐</div>
+            <div class="activity-content">
+                <div class="activity-title">修改了账户密码</div>
+                <div class="activity-time">2周前</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

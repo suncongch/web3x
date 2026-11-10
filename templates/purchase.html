@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}购买 - Web3X{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-title {
+        font-size: 28px;
+        color: #2d3748;
+        margin-bottom: 30px;
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    .product-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .product-image {
+        width: 100%;
+        height: 180px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 60px;
+    }
+
+    .product-content {
+        padding: 20px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 10px;
+    }
+
+    .product-description {
+        font-size: 14px;
+        color: #4a5568;
+        margin-bottom: 15px;
+        flex-grow: 1;
+        line-height: 1.6;
+    }
+
+    .product-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .product-price {
+        font-size: 20px;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .buy-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .buy-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .buy-btn:active {
+        transform: scale(0.98);
+    }
+
+    .buy-btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    /* 购买成功提示 */
+    .success-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .success-modal.show {
+        display: flex;
+    }
+
+    .success-content {
+        background: white;
+        padding: 40px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
+    }
+
+    .success-icon {
+        font-size: 60px;
+        margin-bottom: 20px;
+        animation: scaleIn 0.5s ease;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+        }
+        to {
+            transform: scale(1);
+        }
+    }
+
+    .success-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 10px;
+    }
+
+    .success-message {
+        color: #4a5568;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+
+    .success-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: transform 0.2s ease;
+    }
+
+    .success-button:hover {
+        transform: scale(1.05);
+    }
+
+    /* 加载中状态 */
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #667eea;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .filter-section {
+        background: #f7fafc;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+
+    .filter-title {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 15px;
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        padding: 8px 16px;
+        border: 2px solid #cbd5e0;
+        background: white;
+        color: #4a5568;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .filter-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    @media (max-width: 768px) {
+        .products-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="section-title">🛒 浏览产品</h1>
+<p>每个账号同时拥有一个当前产品，购买新产品后将替换原产品。</p>
+
+<div class="filter-section">
+    <div class="filter-title">按类别筛选</div>
+    <div class="filter-buttons">
+        <button class="filter-btn active">全部</button>
+        <button class="filter-btn">软件</button>
+        <button class="filter-btn">服务</button>
+        <button class="filter-btn">教程</button>
+        <button class="filter-btn">订阅</button>
+    </div>
+</div>
+
+<div class="products-grid" id="products-grid">
+    <div class="product-card">
+        <div class="product-image">📱</div>
+        <div class="product-content">
+            <div class="product-name">Web3 入门套件</div>
+            <div class="product-description">完整的Web3开发教程和工具集，帮助您快速上手区块链开发。</div>
+            <div class="product-footer">
+                <div class="product-price">¥99</div>
+                <button class="buy-btn" onclick="purchaseProduct('Web3 入门套件', 99, this)">立即购买</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="product-card">
+        <div class="product-image">⚙️</div>
+        <div class="product-content">
+            <div class="product-name">高级开发套件</div>
+            <div class="product-description">包含高级功能的开发工具，适合专业开发者和企业使用。</div>
+            <div class="product-footer">
+                <div class="product-price">¥299</div>
+                <button class="buy-btn" onclick="purchaseProduct('高级开发套件', 299, this)">立即购买</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="product-card">
+        <div class="product-image">🚀</div>
+        <div class="product-content">
+            <div class="product-name">企业方案</div>
+            <div class="product-description">为企业级用户定制的完整解决方案和专业支持服务。</div>
+            <div class="product-footer">
+                <div class="product-price">¥999</div>
+                <button class="buy-btn" onclick="purchaseProduct('企业方案', 999, this)">立即购买</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="product-card">
+        <div class="product-image">🎓</div>
+        <div class="product-content">
+            <div class="product-name">认证课程</div>
+            <div class="product-description">获得官方认证的专业培训课程，增强您的技能和竞争力。</div>
+            <div class="product-footer">
+                <div class="product-price">¥199</div>
+                <button class="buy-btn" onclick="purchaseProduct('认证课程', 199, this)">立即购买</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="product-card">
+        <div class="product-image">🔐</div>
+        <div class="product-content">
+            <div class="product-name">安全防护套件</div>
+            <div class="product-description">保护您的数字资产的安全防护工具和最佳实践指南。</div>
+            <div class="product-footer">
+                <div class="product-price">¥149</div>
+                <button class="buy-btn" onclick="purchaseProduct('安全防护套件', 149, this)">立即购买</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="product-card">
+        <div class="product-image">📊</div>
+        <div class="product-content">
+            <div class="product-name">数据分析工具</div>
+            <div class="product-description">强大的数据分析和可视化工具，帮助您做出更好的决策。</div>
+            <div class="product-footer">
+                <div class="product-price">¥249</div>
+                <button class="buy-btn" onclick="purchaseProduct('数据分析工具', 249, this)">立即购买</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 购买成功提示 -->
+<div class="success-modal" id="success-modal">
+    <div class="success-content">
+        <div class="success-icon">✅</div>
+        <div class="success-title">购买成功！</div>
+        <div class="success-message">
+            <p id="product-name"></p>
+            <p id="product-price"></p>
+            <p style="color: #667eea; margin-top: 10px;">订单已提交，感谢您的购买！</p>
+        </div>
+        <button class="success-button" onclick="closeSuccessModal()">继续购物</button>
+    </div>
+</div>
+
+<script>
+/**
+ * 购买产品函数
+ * @param {string} productName - 产品名称
+ * @param {number} price - 产品价格
+ * @param {HTMLElement} button - 点击的按钮元素
+ */
+function purchaseProduct(productName, price, button) {
+    // 禁用按钮并显示加载状态
+    const originalText = button.innerText;
+    button.disabled = true;
+    button.classList.add('loading');
+    button.innerHTML = '<span class="spinner"></span>处理中...';
+    
+    // 调用购买接口
+    fetch('/api/purchase', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            product_name: productName,
+            price: price
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 显示成功提示
+            showSuccessModal(productName, price);
+            resetButton(button, originalText);
+        } else {
+            // 显示错误信息
+            alert('购买失败: ' + (data.message || '未知错误'));
+            resetButton(button, originalText);
+        }
+    })
+    .catch(error => {
+        console.error('错误:', error);
+        alert('购买出错，请稍后重试');
+        resetButton(button, originalText);
+    });
+}
+
+/**
+ * 重置按钮状态
+ * @param {HTMLElement} button - 按钮元素
+ * @param {string} originalText - 原始文本
+ */
+function resetButton(button, originalText) {
+    button.disabled = false;
+    button.classList.remove('loading');
+    button.innerText = originalText;
+}
+
+/**
+ * 显示成功提示框
+ * @param {string} productName - 产品名称
+ * @param {number} price - 产品价格
+ */
+function showSuccessModal(productName, price) {
+    document.getElementById('product-name').innerText = '产品: ' + productName;
+    document.getElementById('product-price').innerText = '金额: ¥' + price;
+    document.getElementById('success-modal').classList.add('show');
+}
+
+/**
+ * 关闭成功提示框
+ */
+function closeSuccessModal() {
+    document.getElementById('success-modal').classList.remove('show');
+}
+
+// 点击背景关闭模态框
+document.getElementById('success-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeSuccessModal();
+    }
+});
+</script>
+{% endblock %}

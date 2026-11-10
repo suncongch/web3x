@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}客服 - Web3X{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-title {
+        font-size: 28px;
+        color: #2d3748;
+        margin-bottom: 30px;
+    }
+
+    .support-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+
+    .support-card {
+        background: #f7fafc;
+        padding: 30px;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+    }
+
+    .support-card h3 {
+        font-size: 20px;
+        color: #2d3748;
+        margin-bottom: 15px;
+    }
+
+    .support-card p {
+        color: #4a5568;
+        line-height: 1.8;
+        margin-bottom: 20px;
+    }
+
+    .support-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: transform 0.2s ease;
+    }
+
+    .support-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .contact-section {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 40px;
+    }
+
+    .contact-form {
+        display: grid;
+        gap: 20px;
+    }
+
+    .form-group {
+        display: grid;
+        gap: 8px;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        padding: 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 5px;
+        font-family: inherit;
+        font-size: 14px;
+        transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .submit-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .faq-section {
+        margin-top: 40px;
+    }
+
+    .faq-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        overflow: hidden;
+    }
+
+    .faq-question {
+        background: #f7fafc;
+        padding: 20px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.3s ease;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .faq-question:hover {
+        background: #edf2f7;
+    }
+
+    .faq-toggle {
+        font-size: 20px;
+        transition: transform 0.3s ease;
+    }
+
+    .faq-answer {
+        padding: 20px;
+        color: #4a5568;
+        line-height: 1.8;
+        display: none;
+        background: white;
+    }
+
+    .faq-answer.show {
+        display: block;
+    }
+
+    .quick-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 40px;
+    }
+
+    .quick-link {
+        background: white;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .quick-link:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .quick-link-icon {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+
+    .quick-link-title {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 8px;
+    }
+
+    .quick-link-desc {
+        font-size: 12px;
+        color: #718096;
+    }
+
+    @media (max-width: 768px) {
+        .support-container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="section-title">💬 客户支持</h1>
+
+<div class="quick-links">
+    <div class="quick-link">
+        <div class="quick-link-icon">📞</div>
+        <div class="quick-link-title">电话支持</div>
+        <div class="quick-link-desc">拨打 1-800-XXX-XXXX</div>
+    </div>
+    <div class="quick-link">
+        <div class="quick-link-icon">📧</div>
+        <div class="quick-link-title">邮件支持</div>
+        <div class="quick-link-desc">support@web3x.com</div>
+    </div>
+    <div class="quick-link">
+        <div class="quick-link-icon">💬</div>
+        <div class="quick-link-title">在线客服</div>
+        <div class="quick-link-desc">立即开始聊天</div>
+    </div>
+    <div class="quick-link">
+        <div class="quick-link-icon">📚</div>
+        <div class="quick-link-title">帮助中心</div>
+        <div class="quick-link-desc">浏览常见问题</div>
+    </div>
+</div>
+
+<div class="support-container">
+    <div class="support-card">
+        <h3>🚀 快速支持</h3>
+        <p>我们的支持团队24/7在线，准备好帮助您解决任何问题。平均响应时间不超过5分钟。</p>
+        <button class="support-btn">启动聊天</button>
+    </div>
+    <div class="support-card">
+        <h3>📖 知识库</h3>
+        <p>访问我们的完整文档和常见问题解答。大多数问题都可以通过自助服务快速解决。</p>
+        <button class="support-btn">浏览知识库</button>
+    </div>
+</div>
+
+<div class="contact-section">
+    <h2 style="margin-bottom: 25px;">✉️ 发送消息给我们</h2>
+    <form class="contact-form" method="POST">
+        <div class="form-group">
+            <label for="name">姓名</label>
+            <input type="text" id="name" name="name" required placeholder="请输入您的姓名">
+        </div>
+
+        <div class="form-group">
+            <label for="email">邮箱</label>
+            <input type="email" id="email" name="email" required placeholder="请输入您的邮箱">
+        </div>
+
+        <div class="form-group">
+            <label for="subject">主题</label>
+            <input type="text" id="subject" name="subject" required placeholder="问题主题">
+        </div>
+
+        <div class="form-group">
+            <label for="category">类别</label>
+            <select id="category" name="category" style="padding: 12px; border: 1px solid #cbd5e0; border-radius: 5px; font-family: inherit;">
+                <option>技术问题</option>
+                <option>账户问题</option>
+                <option>计费问题</option>
+                <option>功能请求</option>
+                <option>其他</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="message">消息</label>
+            <textarea id="message" name="message" required placeholder="请详细描述您的问题..."></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn">发送消息</button>
+    </form>
+</div>
+
+<div class="faq-section">
+    <h2 style="margin-bottom: 25px;">❓ 常见问题</h2>
+
+    <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>如何重置我的密码？</span>
+            <span class="faq-toggle">▼</span>
+        </div>
+        <div class="faq-answer">
+            点击登录页面的"忘记密码"链接。输入您的邮箱地址，我们会发送重置链接。点击链接并设置新密码。该链接24小时内有效。
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>如何升级我的账户？</span>
+            <span class="faq-toggle">▼</span>
+        </div>
+        <div class="faq-answer">
+            您可以在主页的"购买"部分选择升级计划。选择所需的计划，完成支付即可立即升级您的账户。您将获得相应计划的所有功能和特权。
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>如何下载我购买的产品？</span>
+            <span class="faq-toggle">▼</span>
+        </div>
+        <div class="faq-answer">
+            购买后，您可以在主页的"已购买产品"部分找到下载链接。点击产品旁的下载按钮即可。如果链接过期，请联系我们的支持团队。
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>支持退款吗？</span>
+            <span class="faq-toggle">▼</span>
+        </div>
+        <div class="faq-answer">
+            是的，我们提供30天退款保证。如果您在30天内对购买不满意，可以联系支持团队申请全额退款。某些订阅计划可能有不同的政策。
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>如何获得企业支持？</span>
+            <span class="faq-toggle">▼</span>
+        </div>
+        <div class="faq-answer">
+            企业客户可以选择我们的企业方案。这包括专业支持、自定义解决方案和优先级处理。请通过support@web3x.com联系我们了解更多信息。
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleFAQ(element) {
+    const answer = element.nextElementSibling;
+    const toggle = element.querySelector('.faq-toggle');
+    
+    answer.classList.toggle('show');
+    toggle.style.transform = answer.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+</script>
+{% endblock %}
