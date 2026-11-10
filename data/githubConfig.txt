@@ -25,6 +25,7 @@ ruleset=🎯 全球直连,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/mast
 ruleset=🎯 全球直连,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/SteamCN.list
 ruleset=🚀 节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Telegram.list
 ruleset=🚀 节点选择,https://raw.githubusercontent.com/suncongch/passWall/main/proxy.list
+ruleset=🚀 节点选择,https://raw.githubusercontent.com/suncongch/passWall/main/binance.list
 ruleset=🚀 节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyMedia.list
 ruleset=🚀 节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyLite.list
 ruleset=🅰️ Adobe屏蔽,https://raw.githubusercontent.com/suncongch/passWall/refs/heads/main/adobeBlock
@@ -40,7 +41,7 @@ custom_proxy_group=🚀 节点选择`select`[]♻️ 自动选择`[]DIRECT`.*
 custom_proxy_group=🎯 全球直连`select`[]DIRECT`[]🚀 节点选择
 custom_proxy_group=🛑 全球拦截`select`[]REJECT`[]DIRECT
 custom_proxy_group=🐟 半墙网站`select`[]DIRECT`[]🚀 节点选择
-custom_proxy_group=🅰️ Adobe屏蔽`select`[]REJECT`[]🚀 节点选择`[]DIRECT
+custom_proxy_group=🅰️ Adobe验证屏蔽`select`[]REJECT`[]🚀 节点选择`[]DIRECT
 
 enable_rule_generator=true
 overwrite_original_rules=true
