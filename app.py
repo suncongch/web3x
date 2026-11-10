@@ -13,7 +13,7 @@ from pathlib import Path
 from dotenv import dotenv_values, load_dotenv
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from three_xui import DuplicateClientError, PanelError, PanelRequestError, ThreeXUI
-from subscription import (SubscriptionError, build_subscription, clash_attachment_filename,
+from subscription import (SubscriptionError, build_subscription, cached_rule_config, clash_attachment_filename,
                           extra_urls, panel_subscription_base, public_url)
 from urllib.parse import quote
 
@@ -187,6 +187,22 @@ def admin_logout():
     verify_admin_csrf()
     session.clear()
     return redirect(url_for('admin_login'))
+
+
+@app.route('/admin/refresh-rules', methods=['POST'])
+def admin_refresh_rules():
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    verify_admin_csrf()
+    try:
+        cached_rule_config(force=True)
+    except SubscriptionError as exc:
+        current_app.logger.error('管理员刷新分流规则缓存失败：%s', exc)
+        flash('分流规则缓存刷新失败，原缓存未改变。请检查服务器日志。', 'error')
+    else:
+        flash('分流规则缓存刷新成功。', 'success')
+    return redirect(url_for('admin_users'))
 
 
 @app.route('/')

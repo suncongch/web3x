@@ -146,6 +146,24 @@ class AdminTest(unittest.TestCase):
         self.assertIn('下一页', self.client.get(orders_url).get_data(as_text=True))
         self.assertIn('上一页', self.client.get(orders_url + '?page=2').get_data(as_text=True))
 
+    def test_refresh_rules_requires_admin_and_csrf_and_reports_result(self):
+        with patch('app.cached_rule_config') as refresh:
+            self.assertEqual(self.client.post('/admin/refresh-rules').status_code, 302)
+            refresh.assert_not_called()
+            self.login()
+            self.assertEqual(self.client.post('/admin/refresh-rules').status_code, 400)
+            refresh.assert_not_called()
+            token = self.csrf(self.client.get('/admin'))
+            response = self.client.post('/admin/refresh-rules',
+                                        data={'csrf_token': token}, follow_redirects=True)
+            refresh.assert_called_once_with(force=True)
+            self.assertIn('分流规则缓存刷新成功', response.get_data(as_text=True))
+            from subscription import SubscriptionError
+            refresh.side_effect = SubscriptionError('offline')
+            response = self.client.post('/admin/refresh-rules',
+                                        data={'csrf_token': token}, follow_redirects=True)
+            self.assertIn('分流规则缓存刷新失败', response.get_data(as_text=True))
+
 
 if __name__ == '__main__':
     unittest.main()

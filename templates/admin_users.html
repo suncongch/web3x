@@ -7,6 +7,19 @@
 </form>
 {% endblock %}
 {% block content %}
+<section class="card" style="margin-bottom: 24px;">
+    <h2>分流规则缓存</h2>
+    <p>缓存有效期为 7 天，订阅请求会在到期时刷新；刷新失败时保留上次成功的缓存。</p>
+    {% with messages = get_flashed_messages(with_categories=true, category_filter=['success', 'error']) %}
+        {% for category, message in messages %}
+        <p {% if category == 'error' %}class="error" role="alert"{% else %}role="status"{% endif %}>{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+    <form method="post" action="{{ url_for('admin_refresh_rules') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">立即刷新分流规则</button>
+    </form>
+</section>
 <section class="card">
     <h1>用户管理</h1>
     <p>共 {{ users.total }} 位用户。点击“查看订单”查看该用户的订单。</p>

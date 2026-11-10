@@ -1,8 +1,12 @@
 import base64
 import binascii
+import hashlib
 import json
+import logging
 import re
 import os
+import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -19,6 +23,13 @@ from three_xui import NoRedirect, PanelError
 
 class SubscriptionError(Exception):
     pass
+
+
+RULE_CACHE_TTL = 7 * 24 * 60 * 60
+RULE_CACHE_RETRY = 5 * 60
+_rule_cache_lock = threading.RLock()
+_rule_cache_retry = {}
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -126,18 +137,140 @@ def clash_base_config():
     return config
 
 
+def rule_cache_path():
+    return Path(__file__).resolve().parent / 'instance' / 'clash-rule-cache.json'
+
+
+def _rule_sources():
+    location = os.environ.get('CLASH_CONFIG', '').strip()
+    if not location:
+        raise ClashConfigError('未配置 CLASH_CONFIG')
+    remote = location.startswith(('https://', 'http://'))
+    text = None if remote else load_config(location, None)
+    node_rules = load_config('clash_node_rules.ini', None)
+    identity = json.dumps([location, text, node_rules], ensure_ascii=False).encode('utf-8')
+    return location, text, node_rules, hashlib.sha256(identity).hexdigest()
+
+
+def _read_rule_cache(path, identity):
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeError, ValueError) as exc:
+        _logger.warning('读取分流规则缓存失败，将重新获取：%s', exc)
+        return None
+    if (not isinstance(data, dict) or data.get('identity') != identity
+            or not isinstance(data.get('updated'), (int, float)) or isinstance(data['updated'], bool)
+            or not isinstance(data.get('config'), str)
+            or not isinstance(data.get('rules'), dict)
+            or any(not isinstance(key, str) or not isinstance(value, str)
+                   for key, value in data['rules'].items())):
+        _logger.warning('分流规则缓存无效或配置已更改，将重新获取')
+        return None
+    try:
+        _validate_rule_snapshot(data['config'], data['rules'])
+    except ClashConfigError as exc:
+        _logger.warning('分流规则缓存内容无效，将重新获取：%s', exc)
+        return None
+    return data
+
+
+def _validate_rule_snapshot(config, rules):
+    parsed = parse_config(config)
+    try:
+        for pattern, _ in parsed['rename'] + parsed['emoji']:
+            re.compile(pattern)
+        for group in parsed['groups']:
+            health_url_seen = False
+            for item in group[2:]:
+                if item.startswith('[]'):
+                    continue
+                if item.startswith(('https://', 'http://')):
+                    health_url_seen = True
+                elif not health_url_seen:
+                    re.compile(item)
+    except re.error as exc:
+        raise ClashConfigError('分流配置正则表达式无效') from exc
+
+    def rule_content(url):
+        try:
+            return rules[url]
+        except KeyError as exc:
+            raise ClashConfigError('分流规则缓存不完整') from exc
+
+    build_rules(parsed, rule_content)
+
+
+def _write_rule_cache(path, data):
+    temporary = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+                                         delete=False) as file:
+            temporary = Path(file.name)
+            json.dump(data, file, ensure_ascii=False)
+        os.replace(temporary, path)
+    except OSError as exc:
+        raise SubscriptionError('无法保存分流规则缓存') from exc
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+
+
+def cached_rule_config(force=False):
+    with _rule_cache_lock:
+        try:
+            location, text, node_rules, identity = _rule_sources()
+            path = rule_cache_path()
+            cached = _read_rule_cache(path, identity)
+            now = time.time()
+            if not force and cached:
+                if now - cached['updated'] < RULE_CACHE_TTL:
+                    return cached
+                if now < _rule_cache_retry.get(identity, 0):
+                    return cached
+
+            def fetch(url):
+                return fetch_subscription(safe_url(url, allow_query=True), 'clash-verge/v2.3.1')
+
+            try:
+                if text is None:
+                    text = load_config(location, fetch)
+                combined = text + '\n' + node_rules
+                parsed = parse_config(combined)
+                rules = {}
+
+                def fetch_rule(url):
+                    if url not in rules:
+                        rules[url] = fetch(url)
+                    return rules[url]
+
+                build_rules(parsed, fetch_rule)
+                _validate_rule_snapshot(combined, rules)
+                result = {'identity': identity, 'updated': time.time(),
+                          'config': combined, 'rules': rules}
+                _write_rule_cache(path, result)
+            except (SubscriptionError, ClashConfigError) as exc:
+                if force or cached is None:
+                    raise
+                _rule_cache_retry[identity] = time.time() + RULE_CACHE_RETRY
+                _logger.warning('刷新分流规则缓存失败，继续使用旧缓存：%s', exc)
+                return cached
+            _rule_cache_retry.pop(identity, None)
+            return result
+        except ClashConfigError as exc:
+            raise SubscriptionError(str(exc)) from exc
+
+
 def build_clash(primary, extras):
     all_proxies = list(clash_config(primary)['proxies'])
     for text in extras:
         all_proxies.extend(clash_config(text)['proxies'])
     config = clash_base_config()
     try:
-        def fetch_config(url):
-            return fetch_subscription(safe_url(url, allow_query=True), 'clash-verge/v2.3.1')
-
-        text = load_config(os.environ.get('CLASH_CONFIG', '').strip(), fetch_config)
-        node_rules = load_config('clash_node_rules.ini', fetch_config)
-        parsed = parse_config(text + '\n' + node_rules)
+        cached = cached_rule_config()
+        parsed = parse_config(cached['config'])
         proxies, names = [], set()
         for proxy in all_proxies:
             if not INCLUDE_PATTERN.search(proxy['name']):
@@ -155,7 +288,13 @@ def build_clash(primary, extras):
             raise ClashConfigError('没有节点符合 sample 的筛选条件')
         config['proxies'] = proxies
         config['proxy-groups'] = build_groups(parsed, [proxy['name'] for proxy in proxies])
-        config['rules'] = build_rules(parsed, fetch_config)
+        def cached_rule(url):
+            try:
+                return cached['rules'][url]
+            except KeyError as exc:
+                raise ClashConfigError('分流规则缓存不完整，请刷新缓存') from exc
+
+        config['rules'] = build_rules(parsed, cached_rule)
     except ClashConfigError as exc:
         raise SubscriptionError(str(exc)) from exc
     return yaml.safe_dump(config, allow_unicode=True, sort_keys=False)

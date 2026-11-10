@@ -96,8 +96,8 @@ http://localhost:5000
 1. 在服务器上生成随机的 Flask 会话密钥，并交互式生成管理员密码哈希：
 
    ```bash
-   python -c "import secrets; print(secrets.token_urlsafe(32))"
-   python -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('管理员密码: '), method='pbkdf2:sha256'))"
+   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+   python3 -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('管理员密码: '), method='pbkdf2:sha256'))"
    ```
 
 2. 在项目目录的 `.env` 中配置以下变量（或设置对应环境变量）。使用上一步生成的值；不要提交 `.env` 或公开这些值。
@@ -113,6 +113,12 @@ http://localhost:5000
 3. 重启应用，访问 `/admin/login`，或在用户登录页面点击“管理员登录”。管理员登录会结束当前普通用户会话；管理员会话在 30 分钟后过期。
 
 未配置管理员凭据或仍使用默认 Flask 密钥时，管理员入口不可用。正式部署应使用关闭调试模式的生产 WSGI 服务器和 HTTPS，并在反向代理或防火墙上限制管理员入口的访问来源及登录速率；应用本身不提供跨进程登录限速。不要将开发服务器直接暴露到公网。
+
+### 分流规则缓存
+
+Clash 的远端 INI 和其中引用的远端规则集会作为整体缓存在 `instance/clash-rule-cache.json`，有效期为 7 天。首次生成订阅时下载，之后在订阅请求发现缓存到期时刷新；没有订阅请求时不会后台刷新。节点订阅仍实时获取，不使用此缓存。
+
+自动刷新失败时保留上次成功的缓存并记录警告，同一进程 5 分钟后才再次尝试；如果尚无可用缓存，订阅生成会报错。修改本地 INI、节点规则或 `CLASH_CONFIG` 地址后，会重新获取缓存。管理员可在用户管理页面点击“立即刷新分流规则”，强制更新；若任一规则下载或校验失败，原缓存不会被覆盖。运行用户须有 `instance` 目录的读写权限；缓存可能包含带凭据的配置地址，应限制目录访问权限。
 
 ## 测试账户（示例）
 
@@ -155,6 +161,7 @@ http://localhost:5000
 | `/admin` | GET | 管理员查看用户列表 |
 | `/admin/users/<user_id>/orders` | GET | 管理员查看用户订单 |
 | `/admin/logout` | POST | 管理员登出 |
+| `/admin/refresh-rules` | POST | 管理员立即刷新分流规则缓存 |
 
 ## 安全说明
 
