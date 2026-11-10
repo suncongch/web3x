@@ -119,7 +119,8 @@ class ExternalSubscriptionCacheTest(unittest.TestCase):
                   return_value=self.cache_path), \
                 patch('subscription.fetch_subscription', side_effect=fetch) as network:
             results = [
-                build_subscription(panel, 'alice@example.com', 'alice', 'shadowrocket')
+                build_subscription(panel, 'alice@example.com', 'alice', 'shadowrocket',
+                                   include_external_nodes=True)
                 for _ in range(2)
             ]
 

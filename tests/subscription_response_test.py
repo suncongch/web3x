@@ -31,6 +31,7 @@ class SubscriptionResponseTest(unittest.TestCase):
         user = User(username='alice', email='alice@example.com', password='test-hash')
         db.session.add(user)
         db.session.flush()
+        self.user_id = user.id
         db.session.add(SubscriptionToken(user_id=user.id, token='test-sub-token'))
         db.session.commit()
         self.client = self.test_app.test_client()
@@ -44,7 +45,7 @@ class SubscriptionResponseTest(unittest.TestCase):
         body = 'proxies:\n  - name: 香港节点\n' + '# test\n' * 1000
         path = '/subscription/clash/test-sub-token'
         with patch('app.build_subscription',
-                   return_value=SubscriptionResult(body, 0, 0, 0, 0)), \
+                   return_value=SubscriptionResult(body, 0, 0, 0, 0)) as build_subscription, \
                 patch('app.ThreeXUI'):
             compressed = self.client.get(path, headers={'Accept-Encoding': 'gzip'})
             self.assertEqual(compressed.headers['Content-Encoding'], 'gzip')
@@ -55,9 +56,13 @@ class SubscriptionResponseTest(unittest.TestCase):
             self.assertNotIn('Content-Encoding', uncompressed.headers)
             self.assertEqual(uncompressed.data, body.encode('utf-8'))
             self.assertEqual(uncompressed.headers['Vary'], 'Accept-Encoding')
+            self.assertEqual(build_subscription.call_args.kwargs['include_external_nodes'], False)
 
+        user = db.session.get(User, self.user_id)
+        user.can_use_external_nodes = True
+        db.session.commit()
         with patch('app.build_subscription',
-                   return_value=SubscriptionResult('vmess://node', 0, 0, 0, 0)), \
+                   return_value=SubscriptionResult('vmess://node', 0, 0, 0, 0)) as build_subscription, \
                 patch('app.ThreeXUI'):
             shadowrocket = self.client.get(
                 '/subscription/shadowrocket/test-sub-token',
@@ -65,6 +70,7 @@ class SubscriptionResponseTest(unittest.TestCase):
             )
         self.assertEqual(shadowrocket.headers['Content-Encoding'], 'gzip')
         self.assertEqual(gzip.decompress(shadowrocket.data), b'vmess://node')
+        self.assertTrue(build_subscription.call_args.kwargs['include_external_nodes'])
 
 
 if __name__ == '__main__':

@@ -90,6 +90,8 @@ class AdminTest(unittest.TestCase):
         html = page.get_data(as_text=True)
         self.assertIn('&lt;alice&gt;', html)
         self.assertIn('alice@example.com', html)
+        self.assertIn('name="enabled" value="true"', html)
+        self.assertNotIn('checked>', html)
         self.assertNotIn('private-password-hash', html)
         orders = self.client.get(f'/admin/users/{self.user_id}/orders')
         html = orders.get_data(as_text=True)
@@ -99,6 +101,27 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(self.client.get('/admin/users/9999/orders').status_code, 404)
         self.assertEqual(self.client.get('/admin?page=0').status_code, 400)
         self.assertEqual(self.client.get(f'/admin/users/{self.user_id}/orders?page=bad').status_code, 400)
+
+    def test_admin_can_toggle_external_node_access_with_csrf(self):
+        user = db.session.get(User, self.user_id)
+        self.assertFalse(user.can_use_external_nodes)
+        path = f'/admin/users/{self.user_id}/external-nodes'
+        self.assertEqual(self.client.post(path, data={'enabled': 'true'}).status_code, 302)
+        self.login()
+        page = self.client.get('/admin')
+        csrf_token = self.csrf(page)
+        self.assertEqual(self.client.post(path, data={
+            'csrf_token': csrf_token, 'enabled': 'invalid',
+        }).status_code, 400)
+        enabled = self.client.post(path, data={
+            'csrf_token': csrf_token, 'enabled': 'true',
+        })
+        self.assertEqual(enabled.status_code, 302)
+        self.assertTrue(db.session.get(User, self.user_id).can_use_external_nodes)
+        self.assertIn('checked>', self.client.get('/admin').get_data(as_text=True))
+        disabled = self.client.post(path, data={'csrf_token': csrf_token})
+        self.assertEqual(disabled.status_code, 302)
+        self.assertFalse(db.session.get(User, self.user_id).can_use_external_nodes)
 
     def test_expiry_and_credential_rotation_revoke_session(self):
         self.login()

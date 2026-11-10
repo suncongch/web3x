@@ -13,6 +13,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from dotenv import dotenv_values, load_dotenv
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from three_xui import DuplicateClientError, PanelError, PanelRequestError, ThreeXUI
 from subscription import (SubscriptionError, build_subscription, cached_rule_config, clash_attachment_filename,
@@ -46,6 +47,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+    can_use_external_nodes = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     def set_password(self, password):
         self.password = generate_password_hash(password)
@@ -69,6 +71,11 @@ class SubscriptionToken(db.Model):
 
 with app.app_context():
     db.create_all()
+    if 'can_use_external_nodes' not in {
+            column['name'] for column in inspect(db.engine).get_columns('user')}:
+        with db.engine.begin() as connection:
+            connection.exec_driver_sql(
+                'ALTER TABLE user ADD COLUMN can_use_external_nodes BOOLEAN NOT NULL DEFAULT 0')
 
 
 def current_product(user_id):
@@ -184,9 +191,32 @@ def admin_users():
     username, password_hash = admin_configuration()
     if not admin_authenticated(username, password_hash):
         return redirect(url_for('admin_login'))
-    users = (User.query.with_entities(User.id, User.username, User.email)
+    users = (User.query.with_entities(User.id, User.username, User.email,
+                                      User.can_use_external_nodes)
              .order_by(User.id).paginate(page=admin_page_number(), per_page=25, error_out=False))
     return render_template('admin_users.html', users=users, csrf_token=admin_csrf_token())
+
+
+@app.route('/admin/users/<int:user_id>/external-nodes', methods=['POST'])
+def admin_update_external_nodes(user_id):
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    verify_admin_csrf()
+    enabled = request.form.get('enabled')
+    if enabled not in (None, 'true'):
+        abort(400, '外部节点权限值无效')
+    user = User.query.filter_by(id=user_id).first_or_404()
+    user.can_use_external_nodes = enabled == 'true'
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('更新用户外部节点权限失败')
+        flash('外部节点权限保存失败，请稍后重试。', 'error')
+    else:
+        flash('外部节点权限已更新。', 'success')
+    return redirect(url_for('admin_users'))
 
 
 @app.route('/admin/users/<int:user_id>/orders')
@@ -355,7 +385,8 @@ def subscription_links():
     try:
         panel_subscription_base('clash')
         panel_subscription_base('shadowrocket')
-        extra_urls()
+        if user.can_use_external_nodes:
+            extra_urls()
     except SubscriptionError as exc:
         app.logger.error('订阅源配置无效：%s', exc)
         return jsonify(error='订阅服务配置无效，请联系管理员'), 503
@@ -390,7 +421,8 @@ def subscription_content(kind, token):
         return Response('订阅链接无效', status=404, headers={'Cache-Control': 'no-store'})
     try:
         filename = quote(clash_attachment_filename(), safe='') if kind == 'clash' else ''
-        result = build_subscription(ThreeXUI(), user.email, user.username, kind)
+        result = build_subscription(ThreeXUI(), user.email, user.username, kind,
+                                    include_external_nodes=user.can_use_external_nodes)
     except (SubscriptionError, PanelError, SQLAlchemyError) as exc:
         db.session.rollback()
         app.logger.error('生成订阅失败：%s', exc)

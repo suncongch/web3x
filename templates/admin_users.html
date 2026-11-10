@@ -25,15 +25,25 @@
     <p>共 {{ users.total }} 位用户。点击“查看订单”查看该用户的订单。</p>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>ID</th><th>用户名</th><th>邮箱</th><th>订单</th></tr></thead>
+            <thead><tr><th>ID</th><th>用户名</th><th>邮箱</th><th>外部节点</th><th>订单</th></tr></thead>
             <tbody>
                 {% for user in users.items %}
                 <tr>
                     <td>{{ user.id }}</td><td>{{ user.username }}</td><td>{{ user.email }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('admin_update_external_nodes', user_id=user.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <label>
+                                <input type="checkbox" name="enabled" value="true" style="display: inline; width: auto;" {% if user.can_use_external_nodes %}checked{% endif %}>
+                                允许使用
+                            </label>
+                            <button type="submit">保存</button>
+                        </form>
+                    </td>
                     <td><a href="{{ url_for('admin_user_orders', user_id=user.id) }}">查看订单</a></td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4">当前页面没有用户。</td></tr>
+                <tr><td colspan="5">当前页面没有用户。</td></tr>
                 {% endfor %}
             </tbody>
         </table>

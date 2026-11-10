@@ -480,8 +480,8 @@ def panel_subscription(panel, email, username, kind):
     return primary, expiry, upload, download, total
 
 
-def build_subscription(panel, email, username, kind):
-    urls = extra_urls()
+def build_subscription(panel, email, username, kind, *, include_external_nodes=False):
+    urls = extra_urls() if include_external_nodes else []
     primary, expiry, upload, download, total = panel_subscription(panel, email, username, kind)
     agent = 'clash-verge/v2.3.1' if kind == 'clash' else 'Shadowrocket'
     sources = [_timed(f'extra_source_{index}', cached_extra_subscription, url, kind, agent)
