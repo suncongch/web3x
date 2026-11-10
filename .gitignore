@@ -23,6 +23,9 @@ wheels/
 .installed.cfg
 *.egg
 
+#  Tests
+test*.py
+
 # Flask
 instance/
 .webassets-cache
