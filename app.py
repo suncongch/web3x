@@ -1,6 +1,7 @@
 from flask import Flask, Response, abort, current_app, g, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+import gzip
 import logging
 import os
 import re
@@ -407,6 +408,10 @@ def subscription_content(kind, token):
         response.headers['subscription-userinfo'] = userinfo
     else:
         response = Response(result.content, content_type='text/plain; charset=utf-8')
+    response.vary.add('Accept-Encoding')
+    if request.accept_encodings.best_match(['gzip']) == 'gzip':
+        response.set_data(gzip.compress(response.get_data(), mtime=0))
+        response.headers['Content-Encoding'] = 'gzip'
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'no-referrer'
