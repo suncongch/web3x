@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from flask import Flask
 
-from app import SubscriptionToken, User, app, db
+from app import AppSetting, SubscriptionToken, User, app, db
 from subscription import SubscriptionResult
 
 
@@ -57,9 +57,11 @@ class SubscriptionResponseTest(unittest.TestCase):
             self.assertEqual(uncompressed.data, body.encode('utf-8'))
             self.assertEqual(uncompressed.headers['Vary'], 'Accept-Encoding')
             self.assertEqual(build_subscription.call_args.kwargs['include_external_nodes'], False)
+            self.assertIn('日本', build_subscription.call_args.kwargs['include_pattern'].pattern)
 
         user = db.session.get(User, self.user_id)
         user.can_use_external_nodes = True
+        db.session.add(AppSetting(key='node_include_pattern', value='香港'))
         db.session.commit()
         with patch('app.build_subscription',
                    return_value=SubscriptionResult('vmess://node', 0, 0, 0, 0)) as build_subscription, \
@@ -71,6 +73,7 @@ class SubscriptionResponseTest(unittest.TestCase):
         self.assertEqual(shadowrocket.headers['Content-Encoding'], 'gzip')
         self.assertEqual(gzip.decompress(shadowrocket.data), b'vmess://node')
         self.assertTrue(build_subscription.call_args.kwargs['include_external_nodes'])
+        self.assertEqual(build_subscription.call_args.kwargs['include_pattern'].pattern, '香港')
 
 
 if __name__ == '__main__':

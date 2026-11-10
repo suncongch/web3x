@@ -7,7 +7,7 @@ from unittest.mock import patch
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
-from app import Order, User, app, db, protect_admin_responses
+from app import AppSetting, Order, User, app, db, protect_admin_responses
 
 
 class AdminTest(unittest.TestCase):
@@ -122,6 +122,25 @@ class AdminTest(unittest.TestCase):
         disabled = self.client.post(path, data={'csrf_token': csrf_token})
         self.assertEqual(disabled.status_code, 302)
         self.assertFalse(db.session.get(User, self.user_id).can_use_external_nodes)
+
+    def test_admin_can_edit_node_filter_and_invalid_regex_is_rejected(self):
+        self.login()
+        page = self.client.get('/admin')
+        self.assertIn('日本(?!\\s*3\\b)', page.get_data(as_text=True))
+        path = '/admin/node-filter'
+        self.assertEqual(self.client.post(path, data={
+            'csrf_token': self.csrf(page), 'include_pattern': '香港',
+        }).status_code, 302)
+        self.assertEqual(db.session.get(AppSetting, 'node_include_pattern').value, '香港')
+        self.assertIn('香港', self.client.get('/admin').get_data(as_text=True))
+
+        page = self.client.get('/admin')
+        invalid = self.client.post(path, data={
+            'csrf_token': self.csrf(page), 'include_pattern': '(',
+        })
+        self.assertEqual(invalid.status_code, 400)
+        self.assertIn('正则表达式无效', invalid.get_data(as_text=True))
+        self.assertEqual(db.session.get(AppSetting, 'node_include_pattern').value, '香港')
 
     def test_expiry_and_credential_rotation_revoke_session(self):
         self.login()

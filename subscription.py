@@ -383,7 +383,7 @@ def cached_rule_config(force=False):
             raise SubscriptionError(str(exc)) from exc
 
 
-def build_clash(primary, extras):
+def build_clash(primary, extras, include_pattern=INCLUDE_PATTERN):
     all_proxies = list(clash_config(primary)['proxies'])
     for text in extras:
         all_proxies.extend(clash_config(text)['proxies'])
@@ -393,7 +393,7 @@ def build_clash(primary, extras):
         parsed = parse_config(cached['config'])
         proxies, names = [], set()
         for proxy in all_proxies:
-            if not INCLUDE_PATTERN.search(proxy['name']):
+            if not include_pattern.search(proxy['name']):
                 continue
             name = rename_proxy(proxy['name'], parsed)
             unique = name
@@ -480,14 +480,15 @@ def panel_subscription(panel, email, username, kind):
     return primary, expiry, upload, download, total
 
 
-def build_subscription(panel, email, username, kind, *, include_external_nodes=False):
+def build_subscription(panel, email, username, kind, *, include_external_nodes=False,
+                       include_pattern=INCLUDE_PATTERN):
     urls = extra_urls() if include_external_nodes else []
     primary, expiry, upload, download, total = panel_subscription(panel, email, username, kind)
     agent = 'clash-verge/v2.3.1' if kind == 'clash' else 'Shadowrocket'
     sources = [_timed(f'extra_source_{index}', cached_extra_subscription, url, kind, agent)
                for index, url in enumerate(urls, start=1)]
     if kind == 'clash':
-        content = _timed('clash_render', build_clash, primary, sources)
+        content = _timed('clash_render', build_clash, primary, sources, include_pattern)
         return SubscriptionResult(content, expiry, upload, download, total)
     links = parse_links(primary)
     for text in sources:

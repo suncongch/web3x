@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import dotenv_values, load_dotenv
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from clash_config import INCLUDE_PATTERN
 from three_xui import DuplicateClientError, PanelError, PanelRequestError, ThreeXUI
 from subscription import (SubscriptionError, build_subscription, cached_rule_config, clash_attachment_filename,
                           extra_urls, panel_subscription_base, public_url)
@@ -67,6 +68,11 @@ class Order(db.Model):
 class SubscriptionToken(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False)
+
+
+class AppSetting(db.Model):
+    key = db.Column(db.String(80), primary_key=True)
+    value = db.Column(db.Text, nullable=False)
 
 
 with app.app_context():
@@ -139,6 +145,27 @@ def admin_page_number():
     return int(value)
 
 
+def current_node_filter_pattern():
+    setting = db.session.get(AppSetting, 'node_include_pattern')
+    pattern = setting.value if setting is not None else INCLUDE_PATTERN.pattern
+    try:
+        return re.compile(pattern)
+    except re.error as exc:
+        current_app.logger.error('节点筛选条件无效：%s', exc)
+        raise SubscriptionError('节点筛选条件无效，请联系管理员') from exc
+
+
+def render_admin_users(filter_pattern=None, filter_error=None):
+    setting = db.session.get(AppSetting, 'node_include_pattern')
+    if filter_pattern is None:
+        filter_pattern = setting.value if setting is not None else INCLUDE_PATTERN.pattern
+    users = (User.query.with_entities(User.id, User.username, User.email,
+                                      User.can_use_external_nodes)
+             .order_by(User.id).paginate(page=admin_page_number(), per_page=25, error_out=False))
+    return render_template('admin_users.html', users=users, csrf_token=admin_csrf_token(),
+                           filter_pattern=filter_pattern, filter_error=filter_error)
+
+
 @app.before_request
 def start_subscription_timing():
     if request.endpoint in ('subscription_links', 'subscription_content'):
@@ -191,10 +218,38 @@ def admin_users():
     username, password_hash = admin_configuration()
     if not admin_authenticated(username, password_hash):
         return redirect(url_for('admin_login'))
-    users = (User.query.with_entities(User.id, User.username, User.email,
-                                      User.can_use_external_nodes)
-             .order_by(User.id).paginate(page=admin_page_number(), per_page=25, error_out=False))
-    return render_template('admin_users.html', users=users, csrf_token=admin_csrf_token())
+    return render_admin_users()
+
+
+@app.route('/admin/node-filter', methods=['POST'])
+def admin_update_node_filter():
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    verify_admin_csrf()
+    pattern = request.form.get('include_pattern', '')
+    if not pattern.strip():
+        return render_admin_users(pattern, '筛选条件不能为空。'), 400
+    if len(pattern) > 2000:
+        return render_admin_users(pattern, '筛选条件不能超过 2000 个字符。'), 400
+    try:
+        re.compile(pattern)
+    except re.error as exc:
+        return render_admin_users(pattern, f'正则表达式无效：{exc}'), 400
+    setting = db.session.get(AppSetting, 'node_include_pattern')
+    if setting is None:
+        setting = AppSetting(key='node_include_pattern', value=pattern)
+        db.session.add(setting)
+    else:
+        setting.value = pattern
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('保存节点筛选条件失败')
+        return render_admin_users(pattern, '筛选条件保存失败，请稍后重试。'), 500
+    flash('节点筛选条件已更新。', 'success')
+    return redirect(url_for('admin_users'))
 
 
 @app.route('/admin/users/<int:user_id>/external-nodes', methods=['POST'])
@@ -421,8 +476,10 @@ def subscription_content(kind, token):
         return Response('订阅链接无效', status=404, headers={'Cache-Control': 'no-store'})
     try:
         filename = quote(clash_attachment_filename(), safe='') if kind == 'clash' else ''
+        include_pattern = current_node_filter_pattern()
         result = build_subscription(ThreeXUI(), user.email, user.username, kind,
-                                    include_external_nodes=user.can_use_external_nodes)
+                                    include_external_nodes=user.can_use_external_nodes,
+                                    include_pattern=include_pattern)
     except (SubscriptionError, PanelError, SQLAlchemyError) as exc:
         db.session.rollback()
         app.logger.error('生成订阅失败：%s', exc)
