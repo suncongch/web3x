@@ -27,8 +27,10 @@ class SubscriptionError(Exception):
 
 RULE_CACHE_TTL = 7 * 24 * 60 * 60
 RULE_CACHE_RETRY = 5 * 60
+EXTRA_SUB_CACHE_TTL = 7 * 24 * 60 * 60
 _rule_cache_lock = threading.RLock()
 _rule_cache_retry = {}
+_extra_sub_cache_lock = threading.RLock()
 _logger = logging.getLogger(__name__)
 
 
@@ -104,6 +106,84 @@ def extra_urls():
     return [safe_url(url.strip(), allow_query=True) for url in urls if url.strip()]
 
 
+def extra_subscription_cache_path(kind, url):
+    identity = hashlib.sha256(f'{kind}\0{url}'.encode('utf-8')).hexdigest()
+    return Path(__file__).resolve().parent / 'instance' / f'extra-sub-{identity}.json'
+
+
+def _read_extra_subscription_cache(path, kind):
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeError, ValueError) as exc:
+        _logger.warning('读取外部订阅节点缓存失败，将重新获取：%s', exc)
+        return None
+    nodes = data.get('nodes') if isinstance(data, dict) else None
+    updated = data.get('updated') if isinstance(data, dict) else None
+    if type(updated) not in (int, float) or not isinstance(nodes, list):
+        _logger.warning('外部订阅节点缓存格式无效，将重新获取')
+        return None
+    if kind == 'clash':
+        valid = all(isinstance(node, dict) and isinstance(node.get('name'), str)
+                    and node['name'] for node in nodes)
+    else:
+        valid = all(isinstance(node, str) and '://' in node
+                    and not any(char.isspace() for char in node) for node in nodes)
+    if not valid:
+        _logger.warning('外部订阅节点缓存内容无效，将重新获取')
+        return None
+    return {'updated': updated, 'nodes': nodes}
+
+
+def _write_extra_subscription_cache(path, data):
+    temporary = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+                                         delete=False) as file:
+            temporary = Path(file.name)
+            json.dump(data, file, ensure_ascii=False, indent=2)
+            file.write('\n')
+        os.replace(temporary, path)
+    except OSError as exc:
+        _logger.warning('无法保存外部订阅节点缓存：%s', exc)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+
+
+def cached_extra_subscription(url, kind, user_agent):
+    path = extra_subscription_cache_path(kind, url)
+    with _extra_sub_cache_lock:
+        cached = _read_extra_subscription_cache(path, kind)
+    now = time.time()
+    if cached and 0 <= now - cached['updated'] < EXTRA_SUB_CACHE_TTL:
+        _logger.info('subscription_cache type=extra_nodes kind=%s state=hit', kind)
+        nodes = cached['nodes']
+    else:
+        _logger.info('subscription_cache type=extra_nodes kind=%s state=refresh', kind)
+        try:
+            text = _timed('extra_source_fetch', fetch_subscription, url, user_agent)
+            if kind == 'clash':
+                nodes = clash_config(text)['proxies']
+            else:
+                nodes = parse_links(text)
+        except SubscriptionError:
+            if not cached:
+                raise
+            _logger.warning('外部订阅刷新失败，继续使用已有节点缓存')
+            nodes = cached['nodes']
+        else:
+            with _extra_sub_cache_lock:
+                _write_extra_subscription_cache(
+                    path, {'updated': time.time(), 'nodes': nodes},
+                )
+    if kind == 'clash':
+        return yaml.safe_dump({'proxies': nodes}, allow_unicode=True, sort_keys=False)
+    return '\n'.join(nodes)
+
+
 def panel_subscription_base(kind):
     key = 'XUI_CLASH_BASE_URL' if kind == 'clash' else 'XUI_SUB_BASE_URL'
     try:
@@ -175,12 +255,28 @@ def _read_rule_cache(path, identity):
         return None
     if (not isinstance(data, dict) or data.get('identity') != identity
             or not isinstance(data.get('updated'), (int, float)) or isinstance(data['updated'], bool)
-            or not isinstance(data.get('config'), str)
             or not isinstance(data.get('rules'), dict)
-            or any(not isinstance(key, str) or not isinstance(value, str)
-                   for key, value in data['rules'].items())):
+            or any(not isinstance(key, str) for key in data['rules'])):
         _logger.warning('分流规则缓存无效或配置已更改，将重新获取')
         return None
+    config = data.get('config')
+    rules = data['rules']
+    if isinstance(config, list) and all(isinstance(line, str) for line in config):
+        config = '\n'.join(config)
+    if isinstance(config, str):
+        config = config.split('\n')
+    if not isinstance(config, list) or any(not isinstance(line, str) for line in config):
+        _logger.warning('分流规则缓存无效或配置已更改，将重新获取')
+        return None
+    normalized_rules = {}
+    for url, content in rules.items():
+        if isinstance(content, str):
+            content = content.split('\n')
+        if not isinstance(content, list) or any(not isinstance(line, str) for line in content):
+            _logger.warning('分流规则缓存无效或配置已更改，将重新获取')
+            return None
+        normalized_rules[url] = '\n'.join(content)
+    data = {**data, 'config': '\n'.join(config), 'rules': normalized_rules}
     try:
         _validate_rule_snapshot(data['config'], data['rules'])
     except ClashConfigError as exc:
@@ -222,7 +318,13 @@ def _write_rule_cache(path, data):
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
                                          delete=False) as file:
             temporary = Path(file.name)
-            json.dump(data, file, ensure_ascii=False)
+            formatted = {
+                **data,
+                'config': data['config'].split('\n'),
+                'rules': {url: content.split('\n') for url, content in data['rules'].items()},
+            }
+            json.dump(formatted, file, ensure_ascii=False, indent=2)
+            file.write('\n')
         os.replace(temporary, path)
     except OSError as exc:
         raise SubscriptionError('无法保存分流规则缓存') from exc
@@ -382,7 +484,7 @@ def build_subscription(panel, email, username, kind):
     urls = extra_urls()
     primary, expiry, upload, download, total = panel_subscription(panel, email, username, kind)
     agent = 'clash-verge/v2.3.1' if kind == 'clash' else 'Shadowrocket'
-    sources = [_timed(f'extra_source_{index}', fetch_subscription, url, agent)
+    sources = [_timed(f'extra_source_{index}', cached_extra_subscription, url, kind, agent)
                for index, url in enumerate(urls, start=1)]
     if kind == 'clash':
         content = _timed('clash_render', build_clash, primary, sources)

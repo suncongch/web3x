@@ -88,7 +88,7 @@ class RuleCacheTest(unittest.TestCase):
         with patch('subscription.fetch_subscription', side_effect=[INI, 'DOMAIN,updated.example']):
             cached_rule_config(force=True)
         self.assertEqual(json.loads(self.cache.read_text(encoding='utf-8'))['rules'][RULE_URL],
-                         'DOMAIN,updated.example')
+                         ['DOMAIN,updated.example'])
 
     def test_incomplete_cache_is_refetched(self):
         with patch('subscription.fetch_subscription', side_effect=self.fetch):
