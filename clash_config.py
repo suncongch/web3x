@@ -91,6 +91,8 @@ def build_groups(config, names):
                     raise ClashConfigError('策略组节点匹配表达式无效') from exc
         members = list(dict.fromkeys(members))
         def rank(member):
+            if member == '♻️ 自动选择':
+                return -1
             if 'ai' in name.lower() and '节点选择' in member:
                 return 0
             if 'ai' in name.lower() and 'vultr' in member.lower():
