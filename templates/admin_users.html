@@ -1,0 +1,34 @@
+{% extends "admin_base.html" %}
+{% block title %}用户管理{% endblock %}
+{% block header_actions %}
+<form method="post" action="{{ url_for('admin_logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">退出登录</button>
+</form>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>用户管理</h1>
+    <p>共 {{ users.total }} 位用户。点击“查看订单”查看该用户的订单。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>ID</th><th>用户名</th><th>邮箱</th><th>订单</th></tr></thead>
+            <tbody>
+                {% for user in users.items %}
+                <tr>
+                    <td>{{ user.id }}</td><td>{{ user.username }}</td><td>{{ user.email }}</td>
+                    <td><a href="{{ url_for('admin_user_orders', user_id=user.id) }}">查看订单</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">当前页面没有用户。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <nav class="pagination" aria-label="用户列表分页">
+        {% if users.has_prev %}<a href="{{ url_for('admin_users', page=users.prev_num) }}">上一页</a>{% endif %}
+        <span>第 {{ users.page }} 页，共 {{ users.pages }} 页</span>
+        {% if users.has_next %}<a href="{{ url_for('admin_users', page=users.next_num) }}">下一页</a>{% endif %}
+    </nav>
+</section>
+{% endblock %}

@@ -1,10 +1,13 @@
-from flask import Flask, Response, current_app, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, Response, abort, current_app, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
 import secrets
 import string
+import hashlib
+import hmac
+import time
 from datetime import datetime
 from pathlib import Path
 from dotenv import dotenv_values, load_dotenv
@@ -71,6 +74,119 @@ def start_user_session(user):
     session.clear()
     session['user_id'] = user.id
     session['username'] = user.username
+
+
+def admin_configuration():
+    username = os.environ.get('ADMIN_USERNAME', '').strip()
+    password_hash = os.environ.get('ADMIN_PASSWORD_HASH', '').strip()
+    secret = current_app.config.get('SECRET_KEY')
+    valid_hash = re.fullmatch(r'pbkdf2:sha256:[1-9]\d*\$[A-Za-z0-9]+\$[0-9a-f]{64}', password_hash)
+    if not username or not valid_hash or not secret or secret == 'your-secret-key-change-this':
+        current_app.logger.error('管理员服务需要配置 ADMIN_USERNAME、ADMIN_PASSWORD_HASH 和独立的 FLASK_SECRET_KEY')
+        abort(503, '管理员服务尚未安全配置，请联系管理员')
+    return username, password_hash
+
+
+def admin_fingerprint(username, password_hash):
+    key = current_app.config['SECRET_KEY'].encode('utf-8')
+    credentials = (username + '\0' + password_hash).encode('utf-8')
+    return hmac.new(key, credentials, hashlib.sha256).hexdigest()
+
+
+def admin_authenticated(username, password_hash):
+    fingerprint = session.get('admin_fingerprint', '')
+    expires = session.get('admin_expires', 0)
+    return (isinstance(fingerprint, str) and isinstance(expires, (int, float))
+            and time.time() < expires
+            and secrets.compare_digest(fingerprint, admin_fingerprint(username, password_hash)))
+
+
+def admin_csrf_token():
+    if 'admin_csrf' not in session:
+        session['admin_csrf'] = secrets.token_urlsafe(32)
+    return session['admin_csrf']
+
+
+def verify_admin_csrf():
+    expected = session.get('admin_csrf')
+    supplied = request.form.get('csrf_token', '')
+    if not isinstance(expected, str) or not secrets.compare_digest(expected.encode('utf-8'), supplied.encode('utf-8')):
+        abort(400, '请求验证失败，请刷新页面重试')
+
+
+def admin_page_number():
+    value = request.args.get('page', '1')
+    if not value.isascii() or not value.isdecimal() or len(value) > 9 or int(value) < 1:
+        abort(400, '页码无效')
+    return int(value)
+
+
+@app.after_request
+def protect_admin_responses(response):
+    if request.path == '/admin' or request.path.startswith('/admin/'):
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    username, password_hash = admin_configuration()
+    if request.method == 'POST':
+        verify_admin_csrf()
+        supplied_username = request.form.get('username', '')
+        supplied_password = request.form.get('password', '')
+        if len(supplied_username) > 128 or len(supplied_password) > 1024:
+            abort(400, '用户名或密码过长')
+        try:
+            password_matches = check_password_hash(password_hash, supplied_password)
+        except (ValueError, TypeError):
+            current_app.logger.error('ADMIN_PASSWORD_HASH 配置无效')
+            abort(503, '管理员服务尚未安全配置，请联系管理员')
+        username_matches = secrets.compare_digest(username.encode('utf-8'), supplied_username.encode('utf-8'))
+        if username_matches and password_matches:
+            session.clear()
+            session['admin_fingerprint'] = admin_fingerprint(username, password_hash)
+            session['admin_expires'] = time.time() + 1800
+            return redirect(url_for('admin_users'))
+        return render_template('admin_login.html', csrf_token=admin_csrf_token(),
+                               error='用户名或密码错误'), 401
+    if admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_users'))
+    return render_template('admin_login.html', csrf_token=admin_csrf_token())
+
+
+@app.route('/admin')
+def admin_users():
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    users = (User.query.with_entities(User.id, User.username, User.email)
+             .order_by(User.id).paginate(page=admin_page_number(), per_page=25, error_out=False))
+    return render_template('admin_users.html', users=users, csrf_token=admin_csrf_token())
+
+
+@app.route('/admin/users/<int:user_id>/orders')
+def admin_user_orders(user_id):
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    user = User.query.with_entities(User.id, User.username, User.email).filter_by(id=user_id).first_or_404()
+    orders = (Order.query.with_entities(Order.id, Order.product_name, Order.price, Order.status, Order.created_at)
+              .filter_by(user_id=user_id).order_by(Order.id.desc())
+              .paginate(page=admin_page_number(), per_page=25, error_out=False))
+    return render_template('admin_orders.html', user=user, orders=orders, csrf_token=admin_csrf_token())
+
+
+@app.route('/admin/logout', methods=['POST'])
+def admin_logout():
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    verify_admin_csrf()
+    session.clear()
+    return redirect(url_for('admin_login'))
 
 
 @app.route('/')
@@ -344,4 +460,4 @@ def api_purchase():
         }), 500
 
 if __name__ == '__main__':
-    app.run(host='192.168.2.17', debug=True, port=8000)
+    app.run(host='192.168.2.17', debug=False, port=8000)

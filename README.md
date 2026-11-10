@@ -89,6 +89,31 @@ http://localhost:5000
 - 最近活动列表
 - 快速操作按钮
 
+### 管理员页面
+
+管理员使用独立账号登录，不能用普通用户账号登录。管理员页面可分页查看用户 ID、用户名、邮箱和每个用户的订单，不显示用户密码哈希或订阅令牌。
+
+1. 在服务器上生成随机的 Flask 会话密钥，并交互式生成管理员密码哈希：
+
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(32))"
+   python -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('管理员密码: '), method='pbkdf2:sha256'))"
+   ```
+
+2. 在项目目录的 `.env` 中配置以下变量（或设置对应环境变量）。使用上一步生成的值；不要提交 `.env` 或公开这些值。
+
+   ```dotenv
+   FLASK_SECRET_KEY='生成的随机密钥'
+   ADMIN_USERNAME='管理员账号'
+   ADMIN_PASSWORD_HASH='生成的密码哈希'
+   ```
+
+   如果已有安全的 `FLASK_SECRET_KEY`，请保留它；修改会话密钥会使现有登录会话失效。修改管理员账号或密码哈希也会使现有管理员会话失效。
+
+3. 重启应用，访问 `/admin/login`，或在用户登录页面点击“管理员登录”。管理员登录会结束当前普通用户会话；管理员会话在 30 分钟后过期。
+
+未配置管理员凭据或仍使用默认 Flask 密钥时，管理员入口不可用。正式部署应使用关闭调试模式的生产 WSGI 服务器和 HTTPS，并在反向代理或防火墙上限制管理员入口的访问来源及登录速率；应用本身不提供跨进程登录限速。不要将开发服务器直接暴露到公网。
+
 ## 测试账户（示例）
 
 注册一个新账户进行测试：
@@ -126,6 +151,10 @@ http://localhost:5000
 | `/tutorial` | GET | 教程页面 |
 | `/support` | GET | 客服页面 |
 | `/logout` | GET | 登出 |
+| `/admin/login` | GET, POST | 独立管理员登录 |
+| `/admin` | GET | 管理员查看用户列表 |
+| `/admin/users/<user_id>/orders` | GET | 管理员查看用户订单 |
+| `/admin/logout` | POST | 管理员登出 |
 
 ## 安全说明
 

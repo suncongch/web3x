@@ -1,0 +1,35 @@
+{% extends "admin_base.html" %}
+{% block title %}用户订单{% endblock %}
+{% block header_actions %}
+<form method="post" action="{{ url_for('admin_logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">退出登录</button>
+</form>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <p><a href="{{ url_for('admin_users') }}">返回用户列表</a></p>
+    <h1>{{ user.username }} 的订单</h1>
+    <p>用户 ID：{{ user.id }}；邮箱：{{ user.email }}；共 {{ orders.total }} 笔订单。</p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>订单 ID</th><th>产品</th><th>价格</th><th>状态</th><th>创建时间</th></tr></thead>
+            <tbody>
+                {% for order in orders.items %}
+                <tr>
+                    <td>{{ order.id }}</td><td>{{ order.product_name }}</td><td>{{ '%g'|format(order.price) }}</td>
+                    <td>{{ order.status }}</td><td>{{ order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">当前页面没有订单。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <nav class="pagination" aria-label="订单列表分页">
+        {% if orders.has_prev %}<a href="{{ url_for('admin_user_orders', user_id=user.id, page=orders.prev_num) }}">上一页</a>{% endif %}
+        <span>第 {{ orders.page }} 页，共 {{ orders.pages }} 页</span>
+        {% if orders.has_next %}<a href="{{ url_for('admin_user_orders', user_id=user.id, page=orders.next_num) }}">下一页</a>{% endif %}
+    </nav>
+</section>
+{% endblock %}

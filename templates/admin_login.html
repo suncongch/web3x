@@ -1,0 +1,17 @@
+{% extends "admin_base.html" %}
+{% block title %}管理员登录{% endblock %}
+{% block content %}
+<section class="card login-card">
+    <h1>管理员登录</h1>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="username">管理员账号</label>
+        <input id="username" name="username" autocomplete="username" maxlength="128" required>
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+        <p><button type="submit">登录</button></p>
+    </form>
+    <a href="{{ url_for('login') }}">返回用户登录</a>
+</section>
+{% endblock %}

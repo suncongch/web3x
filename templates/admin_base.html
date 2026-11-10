@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}管理员{% endblock %} - Web3X</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f2f4fa; color: #2d3748; }
+        header { background: #2d3748; color: white; padding: 18px 24px; }
+        header .bar { max-width: 1100px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        main { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+        .card { background: white; padding: 24px; border-radius: 10px; box-shadow: 0 4px 18px rgba(0,0,0,.08); }
+        a { color: #5145bb; }
+        header a { color: white; }
+        button { border: 0; background: #667eea; color: white; padding: 10px 16px; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #5145bb; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+        th { background: #f7fafc; }
+        .pagination { display: flex; gap: 20px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+        label { display: block; margin: 16px 0 6px; }
+        input:not([type=hidden]) { display: block; width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 5px; font-size: 16px; }
+        .login-card { max-width: 420px; margin: 10vh auto; }
+        .error { color: #9b2c2c; background: #fed7d7; padding: 12px; border-radius: 5px; }
+        @media (max-width: 600px) { main { margin: 20px auto; } .card { padding: 16px; } th, td { padding: 8px; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="bar">
+            <strong>Web3X 管理员</strong>
+            {% block header_actions %}{% endblock %}
+        </div>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+</body>
+</html>
