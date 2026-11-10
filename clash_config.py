@@ -108,6 +108,8 @@ def build_groups(config, names):
         if not members:
             raise ClashConfigError('策略组没有可用节点或选项')
         group = {'name': name, 'type': kind, 'proxies': members}
+        if name in ('🎯 全球直连', '🛑 全球拦截'):
+            group['hidden'] = True
         if kind != 'select':
             if not health_url or interval is None or interval <= 0:
                 raise ClashConfigError('自动策略组缺少测速地址或间隔')
