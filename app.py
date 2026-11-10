@@ -1,6 +1,7 @@
-from flask import Flask, Response, abort, current_app, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import Flask, Response, abort, current_app, g, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+import logging
 import os
 import re
 import secrets
@@ -24,6 +25,15 @@ if public_base_url is not None:
     os.environ['PUBLIC_BASE_URL'] = public_base_url
 
 app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
+for logger_name in ('subscription', 'three_xui'):
+    timing_logger = logging.getLogger(logger_name)
+    timing_logger.setLevel(logging.INFO)
+    for handler in app.logger.handlers:
+        if handler not in timing_logger.handlers:
+            timing_logger.addHandler(handler)
+    timing_logger.propagate = False
+
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or 'your-secret-key-change-this'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -121,12 +131,23 @@ def admin_page_number():
     return int(value)
 
 
+@app.before_request
+def start_subscription_timing():
+    if request.endpoint in ('subscription_links', 'subscription_content'):
+        g.subscription_request_started = time.perf_counter()
+
+
 @app.after_request
 def protect_admin_responses(response):
     if request.path == '/admin' or request.path.startswith('/admin/'):
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['X-Content-Type-Options'] = 'nosniff'
+    started = getattr(g, 'subscription_request_started', None)
+    if started is not None:
+        app.logger.info('subscription_timing endpoint=%s stage=request_total elapsed_ms=%.1f status=%s',
+                        request.endpoint, (time.perf_counter() - started) * 1000,
+                        response.status_code)
     return response
 
 

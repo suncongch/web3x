@@ -28,6 +28,25 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _request_label(path):
+    fixed_paths = {
+        '/csrf-token': 'csrf_token',
+        '/login': 'login',
+        '/panel/api/inbounds/list': 'inbounds_list',
+        '/panel/api/clients/list': 'clients_list',
+        '/panel/api/clients/add': 'clients_add',
+    }
+    if path in fixed_paths:
+        return fixed_paths[path]
+    if path.startswith('/panel/api/clients/get/subId/'):
+        return 'client_by_sub_id'
+    if path.startswith('/panel/api/clients/get/'):
+        return 'client_by_email'
+    if path.startswith('/panel/api/clients/traffic/'):
+        return 'client_traffic'
+    return 'other'
+
+
 class ThreeXUI:
     def __init__(self):
         self.base_url = os.environ.get('XUI_BASE_URL', '').rstrip('/')
@@ -49,20 +68,27 @@ class ThreeXUI:
         self.failed_inbounds = []
 
     def request(self, path, payload=None):
-        headers = {'Accept': 'application/json', 'Origin': self.origin}
-        data = None
-        if payload is not None:
-            data = json.dumps(payload).encode('utf-8')
-            headers.update({'Content-Type': 'application/json', 'X-CSRF-Token': self.csrf})
-        request = urllib.request.Request(self.base_url + path, data=data, headers=headers)
+        started = time.perf_counter()
+        outcome = 'error'
         try:
-            with self.opener.open(request, timeout=10) as response:
-                body = json.load(response)
-        except (urllib.error.URLError, OSError, ValueError) as exc:
-            raise PanelRequestError('无法连接 3x-ui 面板或面板响应无效') from exc
-        if not isinstance(body, dict) or body.get('success') is not True:
-            raise PanelRequestError('3x-ui 面板拒绝请求')
-        return body.get('obj')
+            headers = {'Accept': 'application/json', 'Origin': self.origin}
+            data = None
+            if payload is not None:
+                data = json.dumps(payload).encode('utf-8')
+                headers.update({'Content-Type': 'application/json', 'X-CSRF-Token': self.csrf})
+            request = urllib.request.Request(self.base_url + path, data=data, headers=headers)
+            try:
+                with self.opener.open(request, timeout=10) as response:
+                    body = json.load(response)
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                raise PanelRequestError('无法连接 3x-ui 面板或面板响应无效') from exc
+            if not isinstance(body, dict) or body.get('success') is not True:
+                raise PanelRequestError('3x-ui 面板拒绝请求')
+            outcome = 'ok'
+            return body.get('obj')
+        finally:
+            logger.info('3xui_request_timing endpoint=%s elapsed_ms=%.1f outcome=%s',
+                        _request_label(path), (time.perf_counter() - started) * 1000, outcome)
 
     def login(self):
         token = self.request('/csrf-token')

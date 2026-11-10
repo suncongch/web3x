@@ -75,6 +75,19 @@ def fetch_subscription(url, user_agent):
         raise SubscriptionError('无法获取订阅内容') from exc
 
 
+def _timed(stage, operation, *args, **kwargs):
+    started = time.perf_counter()
+    outcome = 'ok'
+    try:
+        return operation(*args, **kwargs)
+    except Exception:
+        outcome = 'error'
+        raise
+    finally:
+        _logger.info('subscription_timing stage=%s elapsed_ms=%.1f outcome=%s',
+                     stage, (time.perf_counter() - started) * 1000, outcome)
+
+
 def extra_urls():
     value = os.environ.get('EXTRA_SUB_URLS', '').strip()
     if not value:
@@ -227,12 +240,17 @@ def cached_rule_config(force=False):
             now = time.time()
             if not force and cached:
                 if now - cached['updated'] < RULE_CACHE_TTL:
+                    _logger.info('subscription_cache type=clash_rules state=hit')
                     return cached
                 if now < _rule_cache_retry.get(identity, 0):
+                    _logger.info('subscription_cache type=clash_rules state=stale')
                     return cached
 
+            _logger.info('subscription_cache type=clash_rules state=refresh')
+
             def fetch(url):
-                return fetch_subscription(safe_url(url, allow_query=True), 'clash-verge/v2.3.1')
+                return _timed('clash_rule_source', fetch_subscription,
+                              safe_url(url, allow_query=True), 'clash-verge/v2.3.1')
 
             try:
                 if text is None:
@@ -269,7 +287,7 @@ def build_clash(primary, extras):
         all_proxies.extend(clash_config(text)['proxies'])
     config = clash_base_config()
     try:
-        cached = cached_rule_config()
+        cached = _timed('clash_rule_config', cached_rule_config)
         parsed = parse_config(cached['config'])
         proxies, names = [], set()
         for proxy in all_proxies:
@@ -339,18 +357,20 @@ def validate_client(panel, email, username):
 
 def panel_subscription(panel, email, username, kind):
     base = panel_subscription_base(kind)
-    sub_id, expiry, total = validate_client(panel, email, username)
+    sub_id, expiry, total = _timed('panel_client_validation', validate_client,
+                                   panel, email, username)
     upload, download = 0, 0
     if kind == 'clash':
         try:
-            traffic = panel.get_client_traffic(email)
+            traffic = _timed('panel_traffic', panel.get_client_traffic, email)
         except PanelError as exc:
             raise SubscriptionError(f'无法获取当前用户的客户端流量：{exc}') from exc
         upload, download = traffic['up'], traffic['down']
         if total > 0 and upload + download >= total:
             raise SubscriptionError('客户端已停用、过期或流量已用完')
     agent = 'clash-verge/v2.3.1' if kind == 'clash' else 'Shadowrocket'
-    primary = fetch_subscription(base + '/' + quote(sub_id, safe=''), agent)
+    primary = _timed('primary_source', fetch_subscription,
+                     base + '/' + quote(sub_id, safe=''), agent)
     if kind == 'clash':
         clash_config(primary)
     else:
@@ -362,9 +382,11 @@ def build_subscription(panel, email, username, kind):
     urls = extra_urls()
     primary, expiry, upload, download, total = panel_subscription(panel, email, username, kind)
     agent = 'clash-verge/v2.3.1' if kind == 'clash' else 'Shadowrocket'
-    sources = [fetch_subscription(url, agent) for url in urls]
+    sources = [_timed(f'extra_source_{index}', fetch_subscription, url, agent)
+               for index, url in enumerate(urls, start=1)]
     if kind == 'clash':
-        return SubscriptionResult(build_clash(primary, sources), expiry, upload, download, total)
+        content = _timed('clash_render', build_clash, primary, sources)
+        return SubscriptionResult(content, expiry, upload, download, total)
     links = parse_links(primary)
     for text in sources:
         links.extend(parse_links(text))
