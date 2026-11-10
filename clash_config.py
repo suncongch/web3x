@@ -133,7 +133,7 @@ def build_rules(config, fetch):
     available = {parts[0] for parts in config['groups']} | {'DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'}
     for group, spec in sorted(config['rulesets'], key=priority):
         if group not in available:
-            raise ClashConfigError('规则集引用了不存在的策略组')
+            raise ClashConfigError(f'规则集引用了不存在的策略组：{group}')
         if spec == '[]FINAL':
             rules.append(f'MATCH,{group}')
         elif spec.startswith('[]GEOIP,'):
