@@ -121,6 +121,16 @@
         font-weight: 600;
     }
 
+    .image-btn {
+        border: 1px solid #cbd5e0;
+        border-radius: 8px;
+        background: #fff;
+        color: #2d3748;
+        padding: 9px 14px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
     .alert-error, .alert-success {
         border-radius: 8px;
         padding: 10px 12px;
@@ -185,8 +195,39 @@
                 <label for="images" style="display:block; margin-bottom:4px;">上传图片（最多3张，每张≤5MB）</label>
                 <input id="images" name="images" type="file" accept="{{ ','.join(image_mime_types) }}" multiple>
             </div>
-            <button type="submit" class="send-btn">发送</button>
+            <div style="display:flex; gap:8px;">
+                <button id="image-send-btn" type="button" class="image-btn">发送图片</button>
+                <button type="submit" class="send-btn">发送</button>
+            </div>
         </div>
     </form>
 </section>
+<script>
+    (function() {
+        const form = document.querySelector('.composer');
+        if (!form) return;
+        const content = form.querySelector('textarea[name="content"]');
+        const images = form.querySelector('input[name="images"]');
+        const imageSendBtn = document.getElementById('image-send-btn');
+        imageSendBtn.addEventListener('click', () => images.click());
+        images.addEventListener('change', () => {
+            if (images.files.length > 0) {
+                form.requestSubmit();
+            }
+        });
+        content.addEventListener('paste', (event) => {
+            const items = Array.from(event.clipboardData?.items || []);
+            const imageItems = items.filter((item) => item.kind === 'file' && item.type.startsWith('image/'));
+            if (imageItems.length === 0) return;
+            event.preventDefault();
+            const transfer = new DataTransfer();
+            Array.from(images.files).forEach((file) => transfer.items.add(file));
+            imageItems.slice(0, 3).forEach((item) => {
+                const file = item.getAsFile();
+                if (file) transfer.items.add(file);
+            });
+            images.files = transfer.files;
+        });
+    })();
+</script>
 {% endblock %}

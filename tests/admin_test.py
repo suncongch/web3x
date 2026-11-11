@@ -3,6 +3,7 @@ from pathlib import Path
 import re
 import time
 import unittest
+import io
 from unittest.mock import patch
 
 from flask import Flask
@@ -72,12 +73,11 @@ class AdminTest(unittest.TestCase):
         self.client = self.app.test_client()
 
     def tearDown(self):
-        upload = Path(self.app.instance_path) / 'ticket_uploads' / 'admin-test-issue.png'
-        if upload.exists():
-            upload.unlink()
-        upload = Path(self.app.instance_path) / 'ticket_uploads' / 'admin-test-chat.png'
-        if upload.exists():
-            upload.unlink()
+        upload_dir = Path(self.app.instance_path) / 'ticket_uploads'
+        if upload_dir.is_dir():
+            for item in upload_dir.iterdir():
+                if item.is_file():
+                    item.unlink()
         db.session.remove()
         db.drop_all()
         self.context.pop()
@@ -286,6 +286,27 @@ class AdminTest(unittest.TestCase):
         response = self.client.get(f'/ticket-message-images/{self.message_image.id}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Content-Type'], 'image/png')
+
+    def test_admin_can_send_message_image(self):
+        ticket = Ticket.query.one()
+        self.login()
+        token = self.csrf(self.client.get('/admin/tickets'))
+        response = self.client.post(
+            f'/admin/tickets/{ticket.id}/messages',
+            data={
+                'csrf_token': token,
+                'content': '',
+                'images': [(io.BytesIO(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'), 'reply.png')],
+            },
+            content_type='multipart/form-data',
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('已回复工单'.encode(), response.data)
+        latest = TicketMessage.query.filter_by(ticket_id=ticket.id).order_by(TicketMessage.id.desc()).first()
+        self.assertEqual(latest.sender_role, 'admin')
+        self.assertEqual(latest.content, '[图片]')
+        self.assertEqual(TicketMessageImage.query.filter_by(message_id=latest.id).count(), 1)
 
 
 if __name__ == '__main__':

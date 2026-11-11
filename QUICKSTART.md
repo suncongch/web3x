@@ -155,6 +155,7 @@ class User(db.Model):
 | `/tutorial` | GET | 教程页 | ✅ |
 | `/support` | GET | 客服对话页 | ✅ |
 | `/support/messages` | POST | 用户发送消息/图片 | ✅ |
+| `/ticket-message-images/<image_id>` | GET | 聊天消息图片访问 | ✅ |
 | `/logout` | GET | 登出 | ✅ |
 
 ## ⚙️ 配置说明

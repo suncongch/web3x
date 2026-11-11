@@ -236,6 +236,42 @@ def ticket_upload_dir():
     return directory
 
 
+def validate_ticket_images(files):
+    if len(files) > 3:
+        return None, '最多上传 3 张图片。'
+    specs = []
+    for upload in files:
+        if upload.mimetype not in TICKET_IMAGE_MIME_TYPES:
+            return None, '仅支持 PNG/JPEG/WebP/GIF 图片。'
+        upload.stream.seek(0, os.SEEK_END)
+        size = upload.stream.tell()
+        upload.stream.seek(0)
+        if size <= 0:
+            return None, '上传图片为空，请重新选择。'
+        if size > 5 * 1024 * 1024:
+            return None, '单张图片不能超过 5 MB。'
+        extension = Path(secure_filename(upload.filename)).suffix.lower() or '.img'
+        specs.append((upload, size, extension))
+    return specs, None
+
+
+def save_ticket_message_images(message_id, image_specs):
+    saved_paths = []
+    for upload, size, extension in image_specs:
+        stored_name = secrets.token_hex(24) + extension
+        path = ticket_upload_dir() / stored_name
+        upload.save(path)
+        saved_paths.append(path)
+        db.session.add(TicketMessageImage(
+            message_id=message_id,
+            original_name=secure_filename(upload.filename) or 'image',
+            stored_name=stored_name,
+            mime_type=upload.mimetype,
+            size=size,
+        ))
+    return saved_paths
+
+
 def admin_session_active():
     username = os.environ.get('ADMIN_USERNAME', '').strip()
     password_hash = os.environ.get('ADMIN_PASSWORD_HASH', '').strip()
@@ -419,10 +455,16 @@ def admin_tickets():
         return redirect(url_for('admin_login'))
     tickets = (Ticket.query.options(selectinload(Ticket.user), selectinload(Ticket.attachments),
                                     selectinload(Ticket.messages).selectinload(TicketMessage.images))
-               .order_by(Ticket.id.desc())
-               .paginate(page=admin_page_number(), per_page=25, error_out=False))
-    return render_template('admin_tickets.html', tickets=tickets, csrf_token=admin_csrf_token(),
-                           status_labels=TICKET_STATUS_LABELS, status_options=TICKET_STATUSES)
+               .order_by(Ticket.updated_at.desc(), Ticket.id.desc()).all())
+    selected = None
+    ticket_id = request.args.get('ticket_id', '')
+    if ticket_id.isdecimal():
+        selected = next((ticket for ticket in tickets if ticket.id == int(ticket_id)), None)
+    if selected is None and tickets:
+        selected = tickets[0]
+    return render_template('admin_tickets.html', tickets=tickets, selected_ticket=selected,
+                           csrf_token=admin_csrf_token(), status_labels=TICKET_STATUS_LABELS,
+                           status_options=TICKET_STATUSES)
 
 
 @app.route('/admin/tickets/<int:ticket_id>', methods=['POST'])
@@ -449,10 +491,7 @@ def admin_update_ticket(ticket_id):
         flash('工单更新失败，请稍后重试。', 'error')
     else:
         flash(f'工单 #{ticket.id} 已更新为“{support_status_label(status)}”。', 'success')
-    page = request.form.get('page', '')
-    if page.isdecimal() and int(page) > 0:
-        return redirect(url_for('admin_tickets', page=int(page)))
-    return redirect(url_for('admin_tickets'))
+    return redirect(url_for('admin_tickets', ticket_id=ticket.id))
 
 
 @app.route('/admin/tickets/<int:ticket_id>/messages', methods=['POST'])
@@ -462,29 +501,46 @@ def admin_add_ticket_message(ticket_id):
         return redirect(url_for('admin_login'))
     verify_admin_csrf()
     content = request.form.get('content', '').strip()
-    if not content:
+    files = [item for item in request.files.getlist('images') if item and item.filename]
+    if not content and not files:
         abort(400, '回复内容不能为空')
     if len(content) > 5000:
         abort(400, '回复内容不能超过 5000 个字符')
+    image_specs, image_error = validate_ticket_images(files)
+    if image_error:
+        flash(image_error, 'error')
+        return redirect(url_for('admin_tickets', ticket_id=ticket_id))
     ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
-    ticket.messages.append(TicketMessage(sender_role='admin', content=content))
+    message_text = content or '[图片]'
+    saved_paths = []
+    message = TicketMessage(sender_role='admin', content=message_text)
+    ticket.messages.append(message)
     ticket.updated_at = datetime.utcnow()
     if ticket.status == 'open':
         ticket.status = 'in_progress'
     if ticket.status in ('resolved', 'closed'):
         ticket.closed_at = datetime.utcnow()
     try:
+        db.session.flush()
+        saved_paths = save_ticket_message_images(message.id, image_specs)
         db.session.commit()
+    except OSError:
+        db.session.rollback()
+        for path in saved_paths:
+            if path.exists():
+                path.unlink()
+        current_app.logger.exception('保存管理员工单图片失败')
+        flash('图片发送失败，请稍后重试。', 'error')
     except SQLAlchemyError:
         db.session.rollback()
+        for path in saved_paths:
+            if path.exists():
+                path.unlink()
         current_app.logger.exception('保存工单回复失败')
         flash('工单回复失败，请稍后重试。', 'error')
     else:
         flash(f'已回复工单 #{ticket.id}。', 'success')
-    page = request.form.get('page', '')
-    if page.isdecimal() and int(page) > 0:
-        return redirect(url_for('admin_tickets', page=int(page)))
-    return redirect(url_for('admin_tickets'))
+    return redirect(url_for('admin_tickets', ticket_id=ticket.id))
 
 
 @app.route('/ticket-attachments/<int:attachment_id>')
@@ -740,25 +796,10 @@ def support_add_ticket_message():
     if len(content) > 5000:
         flash('消息内容不能超过 5000 个字符。', 'error')
         return redirect(url_for('support'))
-    if len(files) > 3:
-        flash('最多上传 3 张图片。', 'error')
+    image_specs, image_error = validate_ticket_images(files)
+    if image_error:
+        flash(image_error, 'error')
         return redirect(url_for('support'))
-    image_specs = []
-    for upload in files:
-        if upload.mimetype not in TICKET_IMAGE_MIME_TYPES:
-            flash('仅支持 PNG/JPEG/WebP/GIF 图片。', 'error')
-            return redirect(url_for('support'))
-        upload.stream.seek(0, os.SEEK_END)
-        size = upload.stream.tell()
-        upload.stream.seek(0)
-        if size <= 0:
-            flash('上传图片为空，请重新选择。', 'error')
-            return redirect(url_for('support'))
-        if size > 5 * 1024 * 1024:
-            flash('单张图片不能超过 5 MB。', 'error')
-            return redirect(url_for('support'))
-        extension = Path(secure_filename(upload.filename)).suffix.lower() or '.img'
-        image_specs.append((upload, size, extension))
     ticket = current_user_ticket(session['user_id'])
     if ticket is None:
         initial_content = content or '用户发送了图片'
@@ -776,18 +817,7 @@ def support_add_ticket_message():
         message = TicketMessage(ticket_id=ticket.id, sender_role='user', content=message_text)
         db.session.add(message)
         db.session.flush()
-        for upload, size, extension in image_specs:
-            stored_name = secrets.token_hex(24) + extension
-            path = ticket_upload_dir() / stored_name
-            upload.save(path)
-            saved_paths.append(path)
-            db.session.add(TicketMessageImage(
-                message_id=message.id,
-                original_name=secure_filename(upload.filename) or 'image',
-                stored_name=stored_name,
-                mime_type=upload.mimetype,
-                size=size,
-            ))
+        saved_paths = save_ticket_message_images(message.id, image_specs)
         db.session.commit()
     except OSError:
         db.session.rollback()

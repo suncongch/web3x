@@ -167,6 +167,7 @@ Clash 的远端 INI 和其中引用的远端规则集会作为整体缓存在 `i
 | `/admin/tickets/<ticket_id>` | POST | 管理员更新工单状态 |
 | `/admin/tickets/<ticket_id>/messages` | POST | 管理员发送工单回复 |
 | `/ticket-attachments/<attachment_id>` | GET | 工单图片访问（鉴权） |
+| `/ticket-message-images/<image_id>` | GET | 聊天消息图片访问（鉴权） |
 | `/admin/logout` | POST | 管理员登出 |
 | `/admin/refresh-rules` | POST | 管理员立即刷新分流规则缓存 |
 
