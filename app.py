@@ -1,6 +1,8 @@
-from flask import Flask, Response, abort, current_app, g, render_template, request, redirect, url_for, session, jsonify, flash
+from flask import (Flask, Response, abort, current_app, g, render_template, request,
+                   redirect, url_for, session, jsonify, flash, send_file)
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import gzip
 import logging
 import os
@@ -15,6 +17,7 @@ from pathlib import Path
 from dotenv import dotenv_values, load_dotenv
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import selectinload
 from clash_config import INCLUDE_PATTERN
 from three_xui import DuplicateClientError, PanelError, PanelRequestError, ThreeXUI
 from subscription import (SubscriptionError, build_subscription, cached_rule_config, clash_attachment_filename,
@@ -67,6 +70,7 @@ class Order(db.Model):
 
 TICKET_CATEGORIES = ('技术问题', '账户问题', '计费问题', '功能请求', '其他')
 TICKET_STATUSES = ('open', 'in_progress', 'resolved', 'closed')
+TICKET_IMAGE_MIME_TYPES = ('image/png', 'image/jpeg', 'image/webp', 'image/gif')
 TICKET_STATUS_LABELS = {
     'open': '待处理',
     'in_progress': '处理中',
@@ -86,6 +90,19 @@ class Ticket(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     closed_at = db.Column(db.DateTime, nullable=True)
+    user = db.relationship('User')
+    attachments = db.relationship('TicketAttachment', backref='ticket', lazy='select',
+                                  cascade='all, delete-orphan')
+
+
+class TicketAttachment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False, index=True)
+    original_name = db.Column(db.String(255), nullable=False)
+    stored_name = db.Column(db.String(80), unique=True, nullable=False)
+    mime_type = db.Column(db.String(50), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
 class SubscriptionToken(db.Model):
@@ -189,6 +206,21 @@ def render_admin_users(filter_pattern=None, filter_error=None):
                            filter_pattern=filter_pattern, filter_error=filter_error)
 
 
+def ticket_upload_dir():
+    directory = Path(current_app.instance_path) / 'ticket_uploads'
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def admin_session_active():
+    username = os.environ.get('ADMIN_USERNAME', '').strip()
+    password_hash = os.environ.get('ADMIN_PASSWORD_HASH', '').strip()
+    valid_hash = re.fullmatch(r'pbkdf2:sha256:[1-9]\d*\$[A-Za-z0-9]+\$[0-9a-f]{64}', password_hash)
+    if not username or not valid_hash:
+        return False
+    return admin_authenticated(username, password_hash)
+
+
 def support_status_label(status):
     return TICKET_STATUS_LABELS.get(status, status)
 
@@ -204,6 +236,7 @@ def render_support_page(form_error=None, form_data=None, status_code=200):
         status_labels=TICKET_STATUS_LABELS,
         form_error=form_error,
         form_data=form_data or {},
+        image_mime_types=TICKET_IMAGE_MIME_TYPES,
     ), status_code
 
 
@@ -358,11 +391,7 @@ def admin_tickets():
     username, password_hash = admin_configuration()
     if not admin_authenticated(username, password_hash):
         return redirect(url_for('admin_login'))
-    tickets = (db.session.query(
-        Ticket.id, Ticket.subject, Ticket.category, Ticket.status, Ticket.created_at,
-        Ticket.updated_at, Ticket.closed_at, Ticket.admin_reply, User.id.label('user_id'),
-        User.username, User.email,
-    ).join(User, User.id == Ticket.user_id)
+    tickets = (Ticket.query.options(selectinload(Ticket.user), selectinload(Ticket.attachments))
                .order_by(Ticket.id.desc())
                .paginate(page=admin_page_number(), per_page=25, error_out=False))
     return render_template('admin_tickets.html', tickets=tickets, csrf_token=admin_csrf_token(),
@@ -401,6 +430,23 @@ def admin_update_ticket(ticket_id):
     if page.isdecimal() and int(page) > 0:
         return redirect(url_for('admin_tickets', page=int(page)))
     return redirect(url_for('admin_tickets'))
+
+
+@app.route('/ticket-attachments/<int:attachment_id>')
+def ticket_attachment(attachment_id):
+    attachment = TicketAttachment.query.filter_by(id=attachment_id).first_or_404()
+    user_id = session.get('user_id')
+    allowed = isinstance(user_id, int) and user_id == attachment.ticket.user_id
+    if not allowed:
+        allowed = admin_session_active()
+    if not allowed:
+        abort(403, '无权访问该附件')
+    path = ticket_upload_dir() / attachment.stored_name
+    if not path.is_file():
+        current_app.logger.error('工单附件不存在：id=%s stored_name=%s', attachment.id, attachment.stored_name)
+        abort(404, '附件不存在')
+    return send_file(path, mimetype=attachment.mime_type, as_attachment=False,
+                     download_name=attachment.original_name)
 
 
 @app.route('/')
@@ -622,12 +668,55 @@ def support():
             return render_support_page('请填写问题描述。', form_data, 400)
         if len(content) > 5000:
             return render_support_page('问题描述不能超过 5000 个字符。', form_data, 400)
-        db.session.add(Ticket(user_id=session['user_id'], subject=subject,
-                              category=category, content=content))
+        files = [item for item in request.files.getlist('images') if item and item.filename]
+        if len(files) > 3:
+            return render_support_page('最多上传 3 张图片。', form_data, 400)
+        attachment_specs = []
+        for upload in files:
+            if upload.mimetype not in TICKET_IMAGE_MIME_TYPES:
+                return render_support_page('仅支持 PNG/JPEG/WebP/GIF 图片。', form_data, 400)
+            upload.stream.seek(0, os.SEEK_END)
+            size = upload.stream.tell()
+            upload.stream.seek(0)
+            if size <= 0:
+                return render_support_page('上传图片为空，请重新选择。', form_data, 400)
+            if size > 5 * 1024 * 1024:
+                return render_support_page('单张图片不能超过 5 MB。', form_data, 400)
+            extension = Path(secure_filename(upload.filename)).suffix.lower()
+            if not extension:
+                extension = '.img'
+            attachment_specs.append((upload, size, extension))
+        ticket = Ticket(user_id=session['user_id'], subject=subject,
+                        category=category, content=content)
+        db.session.add(ticket)
+        saved_paths = []
         try:
+            db.session.flush()
+            for upload, size, extension in attachment_specs:
+                stored_name = secrets.token_hex(24) + extension
+                file_path = ticket_upload_dir() / stored_name
+                upload.save(file_path)
+                saved_paths.append(file_path)
+                db.session.add(TicketAttachment(
+                    ticket_id=ticket.id,
+                    original_name=secure_filename(upload.filename) or 'image',
+                    stored_name=stored_name,
+                    mime_type=upload.mimetype,
+                    size=size,
+                ))
             db.session.commit()
+        except OSError:
+            db.session.rollback()
+            for file_path in saved_paths:
+                if file_path.exists():
+                    file_path.unlink()
+            current_app.logger.exception('保存工单图片失败')
+            return render_support_page('图片保存失败，请稍后重试。', form_data, 500)
         except SQLAlchemyError:
             db.session.rollback()
+            for file_path in saved_paths:
+                if file_path.exists():
+                    file_path.unlink()
             current_app.logger.exception('创建工单失败')
             return render_support_page('创建工单失败，请稍后重试。', form_data, 500)
         flash('工单已提交，我们会尽快处理。', 'success')

@@ -20,7 +20,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>工单</th><th>用户</th><th>状态</th><th>内容</th><th>客服回复</th><th>操作</th>
+                    <th>工单</th><th>用户</th><th>状态</th><th>内容与图片</th><th>客服回复</th><th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -34,12 +34,22 @@
                         更新：{{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}
                     </td>
                     <td>
-                        {{ ticket.username }}<br>
-                        ID: {{ ticket.user_id }}<br>
-                        {{ ticket.email }}
+                        {{ ticket.user.username }}<br>
+                        ID: {{ ticket.user.id }}<br>
+                        {{ ticket.user.email }}
                     </td>
                     <td>{{ status_labels[ticket.status] }}</td>
-                    <td style="white-space: pre-wrap;">{{ ticket.content }}</td>
+                    <td style="white-space: pre-wrap;">
+                        {{ ticket.content }}
+                        {% if ticket.attachments %}
+                        <div style="margin-top: 8px;">
+                            {% for attachment in ticket.attachments %}
+                            <a href="{{ url_for('ticket_attachment', attachment_id=attachment.id) }}" target="_blank" rel="noreferrer"
+                               style="display: inline-block; margin-right: 8px;">图片{{ loop.index }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </td>
                     <td style="white-space: pre-wrap;">{{ ticket.admin_reply or '—' }}</td>
                     <td>
                         <form method="post" action="{{ url_for('admin_update_ticket', ticket_id=ticket.id) }}">

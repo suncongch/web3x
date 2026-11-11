@@ -136,6 +136,21 @@
         white-space: pre-wrap;
     }
 
+    .ticket-attachments {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .ticket-attachments img {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+
     @media (max-width: 900px) {
         .ticket-layout {
             grid-template-columns: 1fr;
@@ -161,7 +176,7 @@
         {% if form_error %}
         <p class="alert-error" role="alert">{{ form_error }}</p>
         {% endif %}
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             <div class="field">
                 <label for="subject">工单主题</label>
                 <input id="subject" name="subject" maxlength="120" required
@@ -181,6 +196,10 @@
                 <label for="content">问题描述</label>
                 <textarea id="content" name="content" maxlength="5000" required
                           placeholder="请描述问题复现步骤、报错信息等">{{ form_data.get('content', '') }}</textarea>
+            </div>
+            <div class="field">
+                <label for="images">问题截图（可选，最多3张，每张≤5MB）</label>
+                <input id="images" name="images" type="file" accept="{{ ','.join(image_mime_types) }}" multiple>
             </div>
             <button type="submit" class="submit-btn">提交工单</button>
         </form>
@@ -203,6 +222,15 @@
                 </div>
                 {% if ticket.admin_reply %}
                 <div class="ticket-reply"><strong>客服回复：</strong>{{ ticket.admin_reply }}</div>
+                {% endif %}
+                {% if ticket.attachments %}
+                <div class="ticket-attachments">
+                    {% for attachment in ticket.attachments %}
+                    <a href="{{ url_for('ticket_attachment', attachment_id=attachment.id) }}" target="_blank" rel="noreferrer">
+                        <img src="{{ url_for('ticket_attachment', attachment_id=attachment.id) }}" alt="工单截图 {{ loop.index }}">
+                    </a>
+                    {% endfor %}
+                </div>
                 {% endif %}
             </article>
             {% else %}

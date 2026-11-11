@@ -32,6 +32,11 @@
         <button type="submit">保存节点筛选条件</button>
     </form>
 </section>
+<section class="card" style="margin-bottom: 24px;">
+    <h2>工单中心</h2>
+    <p>查看用户提交的问题描述、图片证据，并更新处理状态。</p>
+    <a href="{{ url_for('admin_tickets') }}" style="display: inline-block; margin-top: 8px;">进入工单管理</a>
+</section>
 <section class="card">
     <h1>用户管理</h1>
     <p>共 {{ users.total }} 位用户。点击“查看订单”查看该用户的订单，或前往 <a href="{{ url_for('admin_tickets') }}">工单管理</a> 处理客服工单。</p>

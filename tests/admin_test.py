@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import re
 import time
 import unittest
@@ -7,7 +8,7 @@ from unittest.mock import patch
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
-from app import AppSetting, Order, Ticket, User, app, db, protect_admin_responses
+from app import AppSetting, Order, Ticket, TicketAttachment, User, app, db, protect_admin_responses
 
 
 class AdminTest(unittest.TestCase):
@@ -41,10 +42,26 @@ class AdminTest(unittest.TestCase):
         db.session.add(Order(user_id=other.id, product_name='plan-b', price=42, status='completed'))
         db.session.add(Ticket(user_id=user.id, subject='订阅故障', category='技术问题',
                               content='无法导入订阅链接'))
+        db.session.flush()
+        ticket = Ticket.query.one()
+        self.attachment = TicketAttachment(
+            ticket_id=ticket.id,
+            original_name='issue.png',
+            stored_name='admin-test-issue.png',
+            mime_type='image/png',
+            size=16,
+        )
+        db.session.add(self.attachment)
         db.session.commit()
+        upload_dir = Path(self.app.instance_path) / 'ticket_uploads'
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / self.attachment.stored_name).write_bytes(b'\x89PNG\r\n\x1a\n')
         self.client = self.app.test_client()
 
     def tearDown(self):
+        upload = Path(self.app.instance_path) / 'ticket_uploads' / 'admin-test-issue.png'
+        if upload.exists():
+            upload.unlink()
         db.session.remove()
         db.drop_all()
         self.context.pop()
@@ -215,7 +232,9 @@ class AdminTest(unittest.TestCase):
         page = self.client.get('/admin/tickets')
         html = page.get_data(as_text=True)
         self.assertIn('订阅故障', html)
+        self.assertIn('无法导入订阅链接', html)
         self.assertIn('&lt;alice&gt;', html)
+        self.assertIn('图片1', html)
         token = self.csrf(page)
         invalid = self.client.post(f'/admin/tickets/{ticket.id}', data={
             'csrf_token': token, 'status': 'bad-status', 'admin_reply': '',
@@ -231,6 +250,13 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(ticket.status, 'resolved')
         self.assertEqual(ticket.admin_reply, '已修复，请重新获取订阅链接')
         self.assertIsNotNone(ticket.closed_at)
+
+    def test_admin_can_open_ticket_attachment(self):
+        self.assertEqual(self.client.get(f'/ticket-attachments/{self.attachment.id}').status_code, 403)
+        self.login()
+        response = self.client.get(f'/ticket-attachments/{self.attachment.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'image/png')
 
 
 if __name__ == '__main__':
