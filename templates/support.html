@@ -83,6 +83,7 @@
         object-fit: cover;
         border-radius: 8px;
         border: 1px solid #cbd5e0;
+        cursor: zoom-in;
     }
 
     .composer {
@@ -115,6 +116,7 @@
         border: 1px solid #cbd5e0;
         border-radius: 6px;
         background: #fff;
+        cursor: zoom-in;
     }
 
     .composer textarea {
@@ -168,6 +170,29 @@
 
     .alert-error { background: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; }
     .alert-success { background: #f0fff4; color: #22543d; border: 1px solid #9ae6b4; }
+
+    .image-lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 9999;
+    }
+
+    .image-lightbox.show {
+        display: flex;
+    }
+
+    .image-lightbox img {
+        max-width: min(92vw, 1200px);
+        max-height: 88vh;
+        border-radius: 10px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
+        background: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -197,9 +222,10 @@
                 {% if message.images %}
                 <div class="message-images">
                     {% for image in message.images %}
-                    <a href="{{ url_for('ticket_message_image', image_id=image.id) }}" target="_blank" rel="noreferrer">
-                        <img src="{{ url_for('ticket_message_image', image_id=image.id) }}" alt="聊天图片 {{ loop.index }}">
-                    </a>
+                    <img class="js-zoom-image"
+                         src="{{ url_for('ticket_message_image', image_id=image.id) }}"
+                         data-full="{{ url_for('ticket_message_image', image_id=image.id) }}"
+                         alt="聊天图片 {{ loop.index }}">
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -221,7 +247,7 @@
 
     <form id="support-composer" class="composer" method="post" action="{{ url_for('support_add_ticket_message') }}" enctype="multipart/form-data">
         <div class="composer-input-wrap">
-            <textarea name="content" maxlength="5000" placeholder="输入消息内容（可只发图片）"></textarea>
+            <textarea name="content" maxlength="5000" placeholder="输入消息内容，可粘贴图片"></textarea>
             <div id="composer-previews" class="composer-previews"></div>
         </div>
         <div class="composer-actions">
@@ -233,6 +259,9 @@
         </div>
     </form>
 </section>
+<div id="image-lightbox" class="image-lightbox" aria-hidden="true">
+    <img id="image-lightbox-preview" alt="图片放大预览">
+</div>
 <script>
     (function() {
         const form = document.getElementById('support-composer');
@@ -244,6 +273,20 @@
         const statusElement = document.getElementById('chat-status');
         const emptyHint = document.getElementById('chat-empty-hint');
         const imageSendBtn = document.getElementById('image-send-btn');
+        const lightbox = document.getElementById('image-lightbox');
+        const lightboxPreview = document.getElementById('image-lightbox-preview');
+
+        function openLightbox(src) {
+            lightboxPreview.src = src;
+            lightbox.classList.add('show');
+            lightbox.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('show');
+            lightbox.setAttribute('aria-hidden', 'true');
+            lightboxPreview.src = '';
+        }
 
         function escapeHtml(text) {
             return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -253,9 +296,11 @@
             previews.innerHTML = '';
             Array.from(images.files).forEach((file) => {
                 const image = document.createElement('img');
-                image.src = URL.createObjectURL(file);
+                const objectUrl = URL.createObjectURL(file);
+                image.src = objectUrl;
+                image.dataset.full = objectUrl;
+                image.className = 'js-zoom-image';
                 image.alt = file.name || '图片预览';
-                image.onload = () => URL.revokeObjectURL(image.src);
                 previews.appendChild(image);
             });
         }
@@ -272,7 +317,7 @@
             }
             if (payload.images && payload.images.length > 0) {
                 html += '<div class="message-images">' + payload.images.map((url, index) =>
-                    '<a href="' + url + '" target="_blank" rel="noreferrer"><img src="' + url + '" alt="聊天图片 ' + (index + 1) + '"></a>'
+                    '<img class="js-zoom-image" src="' + url + '" data-full="' + url + '" alt="聊天图片 ' + (index + 1) + '">'
                 ).join('') + '</div>';
             }
             html += '<div class="message-meta">你 · ' + escapeHtml(payload.created_at || '') + '</div>';
@@ -325,6 +370,21 @@
                 await submitMessage();
             } catch (error) {
                 alert(error.message || '发送失败');
+            }
+        });
+        document.addEventListener('click', (event) => {
+            const image = event.target.closest('.js-zoom-image');
+            if (image && image.dataset.full) {
+                openLightbox(image.dataset.full);
+                return;
+            }
+            if (event.target === lightbox) {
+                closeLightbox();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && lightbox.classList.contains('show')) {
+                closeLightbox();
             }
         });
     })();
