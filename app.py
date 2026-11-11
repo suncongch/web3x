@@ -237,8 +237,6 @@ def ticket_upload_dir():
 
 
 def validate_ticket_images(files):
-    if len(files) > 3:
-        return None, '最多上传 3 张图片。'
     specs = []
     for upload in files:
         if upload.mimetype not in TICKET_IMAGE_MIME_TYPES:

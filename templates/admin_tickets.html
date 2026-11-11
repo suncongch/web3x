@@ -147,6 +147,8 @@
         const emptyHint = document.getElementById('admin-chat-empty-hint');
         const lightbox = document.getElementById('admin-image-lightbox');
         const lightboxPreview = document.getElementById('admin-image-lightbox-preview');
+        let queuedFromDialog = [];
+        const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
         function escapeHtml(text) {
             return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -154,6 +156,71 @@
 
         function scrollToBottom() {
             chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function setFiles(fileList) {
+            const transfer = new DataTransfer();
+            fileList.forEach((file) => transfer.items.add(file));
+            images.files = transfer.files;
+        }
+
+        function mergeFiles(base, incoming) {
+            const merged = [...base];
+            incoming.forEach((file) => {
+                const exists = merged.some((item) =>
+                    item.name === file.name
+                    && item.size === file.size
+                    && item.lastModified === file.lastModified
+                    && item.type === file.type
+                );
+                if (!exists) {
+                    merged.push(file);
+                }
+            });
+            return merged;
+        }
+
+        async function compressHalfPixels(file) {
+            if (!file.type.startsWith('image/') || file.size <= MAX_IMAGE_BYTES) {
+                return file;
+            }
+            const imageUrl = URL.createObjectURL(file);
+            try {
+                const image = await new Promise((resolve, reject) => {
+                    const node = new Image();
+                    node.onload = () => resolve(node);
+                    node.onerror = reject;
+                    node.src = imageUrl;
+                });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.floor(image.naturalWidth / 2));
+                canvas.height = Math.max(1, Math.floor(image.naturalHeight / 2));
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    return file;
+                }
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                const mime = file.type === 'image/png' ? 'image/png' : file.type;
+                const blob = await new Promise((resolve) => {
+                    canvas.toBlob(resolve, mime, 0.9);
+                });
+                if (!blob) {
+                    return file;
+                }
+                return new File([blob], file.name, {type: blob.type || file.type, lastModified: Date.now()});
+            } catch (_) {
+                return file;
+            } finally {
+                URL.revokeObjectURL(imageUrl);
+            }
+        }
+
+        async function preprocessIncomingFiles(files) {
+            const processed = [];
+            for (const file of files) {
+                processed.push(await compressHalfPixels(file));
+            }
+            return processed;
         }
 
         function openLightbox(src) {
@@ -231,22 +298,26 @@
             renderPreviews();
         }
 
-        imageBtn.addEventListener('click', () => images.click());
-        images.addEventListener('change', () => {
+        imageBtn.addEventListener('click', () => {
+            queuedFromDialog = Array.from(images.files);
+            images.click();
+        });
+        images.addEventListener('change', async () => {
+            const prepared = await preprocessIncomingFiles(Array.from(images.files));
+            const merged = mergeFiles(queuedFromDialog, prepared);
+            setFiles(merged);
+            queuedFromDialog = [];
             renderPreviews();
         });
-        content.addEventListener('paste', (event) => {
+        content.addEventListener('paste', async (event) => {
             const items = Array.from(event.clipboardData?.items || []);
             const imageItems = items.filter((item) => item.kind === 'file' && item.type.startsWith('image/'));
             if (imageItems.length === 0) return;
             event.preventDefault();
-            const transfer = new DataTransfer();
-            Array.from(images.files).forEach((file) => transfer.items.add(file));
-            imageItems.slice(0, 3).forEach((item) => {
-                const file = item.getAsFile();
-                if (file) transfer.items.add(file);
-            });
-            images.files = transfer.files;
+            const rawPastedFiles = imageItems.map((item) => item.getAsFile()).filter(Boolean);
+            const pastedFiles = await preprocessIncomingFiles(rawPastedFiles);
+            const merged = mergeFiles(Array.from(images.files), pastedFiles);
+            setFiles(merged);
             renderPreviews();
         });
         form.addEventListener('submit', async (event) => {
