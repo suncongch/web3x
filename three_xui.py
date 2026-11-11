@@ -138,7 +138,7 @@ class ThreeXUI:
             'comment': username,
             'enable': True,
             'security': 'auto',
-            'totalGB': 25 * 1024 ** 3 if total_gb is None else total_gb,
+            'totalGB': 0 * 1024 ** 3 if total_gb is None else total_gb,
             'expiryTime': int((time.time() + 30 * 24 * 60 * 60) * 1000) if expiry_time is None else expiry_time,
         }
         successful = 0

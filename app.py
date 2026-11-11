@@ -81,19 +81,19 @@ TICKET_STATUS_LABELS = {
 }
 
 PURCHASE_PLANS = {
-    '企业方案': {
+    'web 试用套件': {
         'allow_repeat': False,
         'activate_total_gb': 35,
         'renew_total_gb': None,
         'extend_days': 30,
     },
-    'Web3 入门套件': {
+    'Web 入门套件': {
         'allow_repeat': True,
         'activate_total_gb': 100,
         'renew_total_gb': 100,
         'extend_days': 31,
     },
-    '高级开发套件': {
+    'web 高级套件': {
         'allow_repeat': True,
         'activate_total_gb': 100,
         'renew_total_gb': None,
