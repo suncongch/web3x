@@ -41,6 +41,10 @@
             margin-bottom: 20px;
         }
 
+        .header-inline-logout {
+            display: none;
+        }
+
         .sidebar-header h2 {
             color: #fff;
             font-size: 24px;
@@ -121,6 +125,71 @@
                 width: 100%;
                 height: auto;
                 position: static;
+                padding: 0;
+                overflow: visible;
+            }
+
+            .sidebar-header {
+                margin-bottom: 0;
+                padding: 12px 14px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                text-align: left;
+            }
+
+            .sidebar-header h2 {
+                margin: 0;
+                font-size: 22px;
+            }
+
+            .user-info {
+                margin: 0;
+                font-size: 13px;
+            }
+
+            .header-inline-logout {
+                display: inline-block;
+                padding: 8px 10px;
+                background: #e53e3e;
+                color: #fff;
+                text-decoration: none;
+                border-radius: 6px;
+                white-space: nowrap;
+                font-size: 13px;
+            }
+
+            .sidebar-nav {
+                display: flex;
+                border-top: 1px solid #4a5568;
+                overflow-x: auto;
+            }
+
+            .sidebar-nav li {
+                flex: 1 0 auto;
+            }
+
+            .sidebar-nav a {
+                border-left: none;
+                border-bottom: 3px solid transparent;
+                padding: 12px 14px;
+                text-align: center;
+                white-space: nowrap;
+            }
+
+            .sidebar-nav a:hover {
+                border-left-color: transparent;
+                border-bottom-color: #667eea;
+            }
+
+            .sidebar-nav a.active {
+                border-left-color: transparent;
+                border-bottom-color: #fff;
+            }
+
+            .logout-btn {
+                display: none;
             }
 
             .main-content {
@@ -140,6 +209,7 @@
     <div class="container">
         <div class="sidebar">
             <div class="sidebar-header">
+                <a href="{{ url_for('logout') }}" class="header-inline-logout">退出登录</a>
                 <h2>Web3X</h2>
                 <div class="user-info">欢迎, {{ username }}</div>
             </div>
