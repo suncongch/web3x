@@ -34,7 +34,7 @@
 </section>
 <section class="card">
     <h1>用户管理</h1>
-    <p>共 {{ users.total }} 位用户。点击“查看订单”查看该用户的订单。</p>
+    <p>共 {{ users.total }} 位用户。点击“查看订单”查看该用户的订单，或前往 <a href="{{ url_for('admin_tickets') }}">工单管理</a> 处理客服工单。</p>
     <div class="table-wrap">
         <table>
             <thead><tr><th>ID</th><th>用户名</th><th>邮箱</th><th>外部节点</th><th>订单</th></tr></thead>

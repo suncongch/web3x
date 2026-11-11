@@ -16,7 +16,7 @@ web3x/
     ├── home.html           # 主页
     ├── purchase.html       # 购买页面
     ├── tutorial.html       # 教程页面
-    └── support.html        # 客服页面
+    └── support.html        # 客服工单页面
 ```
 
 ## 功能特性
@@ -32,7 +32,7 @@ web3x/
 - 🏠 **主页** - 展示平台特性和统计信息
 - 🛒 **购买** - 产品浏览和购物车功能
 - 📚 **教程** - 分级学习课程（初级、中级、高级）
-- 💬 **客服** - 客户支持、FAQ 和联系表单
+- 💬 **客服工单** - 提交问题、查看处理状态和客服回复
 
 ### 3. UI/UX 特性
 - 🎨 现代化设计，渐变色主题
@@ -157,11 +157,13 @@ Clash 的远端 INI 和其中引用的远端规则集会作为整体缓存在 `i
 | `/home` | GET | 主页 |
 | `/purchase` | GET | 购买页面 |
 | `/tutorial` | GET | 教程页面 |
-| `/support` | GET | 客服页面 |
+| `/support` | GET, POST | 客服工单页面 |
 | `/logout` | GET | 登出 |
 | `/admin/login` | GET, POST | 独立管理员登录 |
 | `/admin` | GET | 管理员查看用户列表 |
 | `/admin/users/<user_id>/orders` | GET | 管理员查看用户订单 |
+| `/admin/tickets` | GET | 管理员工单列表 |
+| `/admin/tickets/<ticket_id>` | POST | 管理员更新工单状态与回复 |
 | `/admin/logout` | POST | 管理员登出 |
 | `/admin/refresh-rules` | POST | 管理员立即刷新分流规则缓存 |
 

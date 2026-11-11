@@ -65,6 +65,29 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+TICKET_CATEGORIES = ('技术问题', '账户问题', '计费问题', '功能请求', '其他')
+TICKET_STATUSES = ('open', 'in_progress', 'resolved', 'closed')
+TICKET_STATUS_LABELS = {
+    'open': '待处理',
+    'in_progress': '处理中',
+    'resolved': '已解决',
+    'closed': '已关闭',
+}
+
+
+class Ticket(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    subject = db.Column(db.String(120), nullable=False)
+    category = db.Column(db.String(20), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='open')
+    admin_reply = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    closed_at = db.Column(db.DateTime, nullable=True)
+
+
 class SubscriptionToken(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False)
@@ -164,6 +187,24 @@ def render_admin_users(filter_pattern=None, filter_error=None):
              .order_by(User.id).paginate(page=admin_page_number(), per_page=25, error_out=False))
     return render_template('admin_users.html', users=users, csrf_token=admin_csrf_token(),
                            filter_pattern=filter_pattern, filter_error=filter_error)
+
+
+def support_status_label(status):
+    return TICKET_STATUS_LABELS.get(status, status)
+
+
+def render_support_page(form_error=None, form_data=None, status_code=200):
+    tickets = (Ticket.query.filter_by(user_id=session['user_id'])
+               .order_by(Ticket.id.desc()).all())
+    return render_template(
+        'support.html',
+        username=session.get('username'),
+        tickets=tickets,
+        categories=TICKET_CATEGORIES,
+        status_labels=TICKET_STATUS_LABELS,
+        form_error=form_error,
+        form_data=form_data or {},
+    ), status_code
 
 
 @app.before_request
@@ -310,6 +351,56 @@ def admin_refresh_rules():
     else:
         flash('分流规则缓存刷新成功。', 'success')
     return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/tickets')
+def admin_tickets():
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    tickets = (db.session.query(
+        Ticket.id, Ticket.subject, Ticket.category, Ticket.status, Ticket.created_at,
+        Ticket.updated_at, Ticket.closed_at, Ticket.admin_reply, User.id.label('user_id'),
+        User.username, User.email,
+    ).join(User, User.id == Ticket.user_id)
+               .order_by(Ticket.id.desc())
+               .paginate(page=admin_page_number(), per_page=25, error_out=False))
+    return render_template('admin_tickets.html', tickets=tickets, csrf_token=admin_csrf_token(),
+                           status_labels=TICKET_STATUS_LABELS, status_options=TICKET_STATUSES)
+
+
+@app.route('/admin/tickets/<int:ticket_id>', methods=['POST'])
+def admin_update_ticket(ticket_id):
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    verify_admin_csrf()
+    status = request.form.get('status', '').strip()
+    if status not in TICKET_STATUSES:
+        abort(400, '工单状态无效')
+    admin_reply = request.form.get('admin_reply', '').strip()
+    if len(admin_reply) > 5000:
+        abort(400, '回复内容不能超过 5000 个字符')
+    ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
+    ticket.status = status
+    ticket.admin_reply = admin_reply or None
+    ticket.updated_at = datetime.utcnow()
+    if status in ('resolved', 'closed'):
+        ticket.closed_at = datetime.utcnow()
+    else:
+        ticket.closed_at = None
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('更新工单失败')
+        flash('工单更新失败，请稍后重试。', 'error')
+    else:
+        flash(f'工单 #{ticket.id} 已更新为“{support_status_label(status)}”。', 'success')
+    page = request.form.get('page', '')
+    if page.isdecimal() and int(page) > 0:
+        return redirect(url_for('admin_tickets', page=int(page)))
+    return redirect(url_for('admin_tickets'))
 
 
 @app.route('/')
@@ -512,11 +603,36 @@ def tutorial():
         return redirect(url_for('login'))
     return render_template('tutorial.html', username=session.get('username'))
 
-@app.route('/support')
+@app.route('/support', methods=['GET', 'POST'])
 def support():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('support.html', username=session.get('username'))
+    if request.method == 'POST':
+        subject = request.form.get('subject', '').strip()
+        category = request.form.get('category', '').strip()
+        content = request.form.get('content', '').strip()
+        form_data = {'subject': subject, 'category': category, 'content': content}
+        if not subject:
+            return render_support_page('请填写工单主题。', form_data, 400)
+        if len(subject) > 120:
+            return render_support_page('工单主题不能超过 120 个字符。', form_data, 400)
+        if category not in TICKET_CATEGORIES:
+            return render_support_page('请选择有效的工单分类。', form_data, 400)
+        if not content:
+            return render_support_page('请填写问题描述。', form_data, 400)
+        if len(content) > 5000:
+            return render_support_page('问题描述不能超过 5000 个字符。', form_data, 400)
+        db.session.add(Ticket(user_id=session['user_id'], subject=subject,
+                              category=category, content=content))
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            current_app.logger.exception('创建工单失败')
+            return render_support_page('创建工单失败，请稍后重试。', form_data, 500)
+        flash('工单已提交，我们会尽快处理。', 'success')
+        return redirect(url_for('support'))
+    return render_support_page()
 
 @app.route('/logout')
 def logout():

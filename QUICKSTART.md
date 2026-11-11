@@ -153,7 +153,7 @@ class User(db.Model):
 | `/home` | GET | 主页 | ✅ |
 | `/purchase` | GET | 购买页 | ✅ |
 | `/tutorial` | GET | 教程页 | ✅ |
-| `/support` | GET | 客服页 | ✅ |
+| `/support` | GET/POST | 客服工单页 | ✅ |
 | `/logout` | GET | 登出 | ✅ |
 
 ## ⚙️ 配置说明

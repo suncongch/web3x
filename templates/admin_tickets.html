@@ -1,0 +1,75 @@
+{% extends "admin_base.html" %}
+{% block title %}工单管理{% endblock %}
+{% block header_actions %}
+<form method="post" action="{{ url_for('admin_logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">退出登录</button>
+</form>
+{% endblock %}
+{% block content %}
+<section class="card">
+    <p><a href="{{ url_for('admin_users') }}">返回用户列表</a></p>
+    <h1>工单管理</h1>
+    <p>共 {{ tickets.total }} 条工单。可修改状态并填写客服回复。</p>
+    {% with messages = get_flashed_messages(with_categories=true, category_filter=['success', 'error']) %}
+        {% for category, message in messages %}
+        <p {% if category == 'error' %}class="error" role="alert"{% else %}role="status"{% endif %}>{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>工单</th><th>用户</th><th>状态</th><th>内容</th><th>客服回复</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets.items %}
+                <tr>
+                    <td>
+                        #{{ ticket.id }}<br>
+                        <strong>{{ ticket.subject }}</strong><br>
+                        分类：{{ ticket.category }}<br>
+                        创建：{{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}<br>
+                        更新：{{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}
+                    </td>
+                    <td>
+                        {{ ticket.username }}<br>
+                        ID: {{ ticket.user_id }}<br>
+                        {{ ticket.email }}
+                    </td>
+                    <td>{{ status_labels[ticket.status] }}</td>
+                    <td style="white-space: pre-wrap;">{{ ticket.content }}</td>
+                    <td style="white-space: pre-wrap;">{{ ticket.admin_reply or '—' }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('admin_update_ticket', ticket_id=ticket.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="page" value="{{ tickets.page }}">
+                            <label for="status-{{ ticket.id }}">状态</label>
+                            <select id="status-{{ ticket.id }}" name="status" style="width: 100%; margin-bottom: 8px;">
+                                {% for status in status_options %}
+                                <option value="{{ status }}" {% if status == ticket.status %}selected{% endif %}>
+                                    {{ status_labels[status] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label for="reply-{{ ticket.id }}">回复</label>
+                            <textarea id="reply-{{ ticket.id }}" name="admin_reply" rows="4" maxlength="5000"
+                                      style="width: 100%; margin-bottom: 8px;">{{ ticket.admin_reply or '' }}</textarea>
+                            <button type="submit">保存</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">当前页面没有工单。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <nav class="pagination" aria-label="工单列表分页">
+        {% if tickets.has_prev %}<a href="{{ url_for('admin_tickets', page=tickets.prev_num) }}">上一页</a>{% endif %}
+        <span>第 {{ tickets.page }} 页，共 {{ tickets.pages }} 页</span>
+        {% if tickets.has_next %}<a href="{{ url_for('admin_tickets', page=tickets.next_num) }}">下一页</a>{% endif %}
+    </nav>
+</section>
+{% endblock %}

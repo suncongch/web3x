@@ -7,7 +7,7 @@ from unittest.mock import patch
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
-from app import AppSetting, Order, User, app, db, protect_admin_responses
+from app import AppSetting, Order, Ticket, User, app, db, protect_admin_responses
 
 
 class AdminTest(unittest.TestCase):
@@ -39,6 +39,8 @@ class AdminTest(unittest.TestCase):
         self.other_id = other.id
         db.session.add(Order(user_id=user.id, product_name='plan-a', price=99, status='completed'))
         db.session.add(Order(user_id=other.id, product_name='plan-b', price=42, status='completed'))
+        db.session.add(Ticket(user_id=user.id, subject='订阅故障', category='技术问题',
+                              content='无法导入订阅链接'))
         db.session.commit()
         self.client = self.app.test_client()
 
@@ -205,6 +207,30 @@ class AdminTest(unittest.TestCase):
             response = self.client.post('/admin/refresh-rules',
                                         data={'csrf_token': token}, follow_redirects=True)
             self.assertIn('分流规则缓存刷新失败', response.get_data(as_text=True))
+
+    def test_admin_can_manage_tickets(self):
+        ticket = Ticket.query.one()
+        self.assertEqual(self.client.get('/admin/tickets').status_code, 302)
+        self.login()
+        page = self.client.get('/admin/tickets')
+        html = page.get_data(as_text=True)
+        self.assertIn('订阅故障', html)
+        self.assertIn('&lt;alice&gt;', html)
+        token = self.csrf(page)
+        invalid = self.client.post(f'/admin/tickets/{ticket.id}', data={
+            'csrf_token': token, 'status': 'bad-status', 'admin_reply': '',
+        })
+        self.assertEqual(invalid.status_code, 400)
+        updated = self.client.post(f'/admin/tickets/{ticket.id}', data={
+            'csrf_token': token,
+            'status': 'resolved',
+            'admin_reply': '已修复，请重新获取订阅链接',
+        }, follow_redirects=True)
+        self.assertIn('已更新为“已解决”', updated.get_data(as_text=True))
+        ticket = db.session.get(Ticket, ticket.id)
+        self.assertEqual(ticket.status, 'resolved')
+        self.assertEqual(ticket.admin_reply, '已修复，请重新获取订阅链接')
+        self.assertIsNotNone(ticket.closed_at)
 
 
 if __name__ == '__main__':
