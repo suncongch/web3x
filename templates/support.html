@@ -93,26 +93,37 @@
         gap: 10px;
     }
 
+    .composer-input-wrap {
+        position: relative;
+    }
+
     .composer-previews {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        pointer-events: none;
     }
 
     .composer-previews img {
-        width: 88px;
-        height: 88px;
+        width: 64px;
+        height: 64px;
         object-fit: cover;
         border: 1px solid #cbd5e0;
         border-radius: 6px;
+        background: #fff;
     }
 
     .composer textarea {
         width: 100%;
-        min-height: 90px;
+        min-height: 140px;
         border: 1px solid #cbd5e0;
         border-radius: 8px;
         padding: 10px;
+        padding-bottom: 86px;
         font: inherit;
         resize: vertical;
     }
@@ -143,6 +154,10 @@
         padding: 9px 14px;
         cursor: pointer;
         font-weight: 600;
+    }
+
+    #images {
+        display: none;
     }
 
     .alert-error, .alert-success {
@@ -205,13 +220,12 @@
     </div>
 
     <form id="support-composer" class="composer" method="post" action="{{ url_for('support_add_ticket_message') }}" enctype="multipart/form-data">
-        <textarea name="content" maxlength="5000" placeholder="输入消息内容（可只发图片）"></textarea>
-        <div id="composer-previews" class="composer-previews"></div>
+        <div class="composer-input-wrap">
+            <textarea name="content" maxlength="5000" placeholder="输入消息内容（可只发图片）"></textarea>
+            <div id="composer-previews" class="composer-previews"></div>
+        </div>
         <div class="composer-actions">
-            <div>
-                <label for="images" style="display:block; margin-bottom:4px;">上传图片（最多3张，每张≤5MB）</label>
-                <input id="images" name="images" type="file" accept="{{ ','.join(image_mime_types) }}" multiple>
-            </div>
+            <input id="images" name="images" type="file" accept="{{ ','.join(image_mime_types) }}" multiple>
             <div style="display:flex; gap:8px;">
                 <button id="image-send-btn" type="button" class="image-btn">发送图片</button>
                 <button type="submit" class="send-btn">发送</button>
