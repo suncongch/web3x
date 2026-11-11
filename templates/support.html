@@ -298,6 +298,10 @@
         const lightbox = document.getElementById('image-lightbox');
         const lightboxPreview = document.getElementById('image-lightbox-preview');
 
+        function scrollToBottom() {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
         function openLightbox(src) {
             lightboxPreview.src = src;
             lightbox.classList.add('show');
@@ -355,7 +359,7 @@
             html += '<div class="message-meta">你 · ' + escapeHtml(payload.created_at || '') + '</div>';
             article.innerHTML = html;
             chatWindow.appendChild(article);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+            scrollToBottom();
         }
 
         async function submitMessage() {
@@ -432,6 +436,7 @@
                 closeLightbox();
             }
         });
+        scrollToBottom();
     })();
 </script>
 {% endblock %}

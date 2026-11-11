@@ -45,6 +45,7 @@
         .reply-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
         .btn-row { display: flex; gap: 8px; }
         #admin-reply-images { display: none; }
+        #admin-chat-status { color:#4a5568; margin-left: 8px; font-size: 13px; }
         .image-lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 9999; }
         .image-lightbox.show { display: flex; }
         .image-lightbox img { max-width: min(92vw, 1200px); max-height: 88vh; border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .45); background: #fff; }
@@ -69,8 +70,9 @@
             <div class="chat-head">
                 <strong>{{ selected_ticket.user.username }}</strong>（{{ selected_ticket.user.email }}）<br>
                 <span class="ticket-meta">工单 #{{ selected_ticket.id }} · {{ selected_ticket.category }} · 创建于 {{ selected_ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if selected_ticket.created_at else '—' }}</span>
+                <span id="admin-chat-status">状态：{{ status_labels[selected_ticket.status] }}</span>
             </div>
-            <div class="chat-window">
+            <div id="admin-chat-window" class="chat-window">
                 {% if selected_ticket.messages %}
                     {% for message in selected_ticket.messages|sort(attribute='id') %}
                     <article class="message-row {{ message.sender_role }}">
@@ -91,7 +93,7 @@
                     </article>
                     {% endfor %}
                 {% else %}
-                <article class="message-row user">
+                <article id="admin-chat-empty-hint" class="message-row user">
                     <div class="message-bubble">{{ selected_ticket.content }}</div>
                     <div class="message-meta">用户 · {{ selected_ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if selected_ticket.created_at else '—' }}</div>
                 </article>
@@ -140,8 +142,19 @@
         const images = document.getElementById('admin-reply-images');
         const previews = document.getElementById('admin-reply-previews');
         const imageBtn = document.getElementById('admin-image-btn');
+        const chatWindow = document.getElementById('admin-chat-window');
+        const statusElement = document.getElementById('admin-chat-status');
+        const emptyHint = document.getElementById('admin-chat-empty-hint');
         const lightbox = document.getElementById('admin-image-lightbox');
         const lightboxPreview = document.getElementById('admin-image-lightbox-preview');
+
+        function escapeHtml(text) {
+            return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        }
+
+        function scrollToBottom() {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
 
         function openLightbox(src) {
             lightboxPreview.src = src;
@@ -166,7 +179,6 @@
                 image.dataset.full = objectUrl;
                 image.className = 'js-zoom-image';
                 image.alt = file.name || '图片预览';
-                image.onload = () => URL.revokeObjectURL(objectUrl);
                 const removeButton = document.createElement('button');
                 removeButton.type = 'button';
                 removeButton.className = 'reply-preview-remove';
@@ -176,6 +188,47 @@
                 wrapper.appendChild(removeButton);
                 previews.appendChild(wrapper);
             });
+        }
+
+        function appendMessage(payload) {
+            if (emptyHint) {
+                emptyHint.remove();
+            }
+            const article = document.createElement('article');
+            article.className = 'message-row admin';
+            let html = '';
+            if (payload.content) {
+                html += '<div class="message-bubble">' + escapeHtml(payload.content) + '</div>';
+            }
+            if (payload.images && payload.images.length > 0) {
+                html += '<div class="message-images">' + payload.images.map((url, index) =>
+                    '<img class="js-zoom-image" src="' + url + '" data-full="' + url + '" alt="消息图片 ' + (index + 1) + '">'
+                ).join('') + '</div>';
+            }
+            html += '<div class="message-meta">客服 · ' + escapeHtml(payload.created_at || '') + '</div>';
+            article.innerHTML = html;
+            chatWindow.appendChild(article);
+            scrollToBottom();
+        }
+
+        async function submitReply() {
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || '发送失败');
+            }
+            appendMessage(data.message);
+            if (statusElement && data.status) {
+                statusElement.textContent = '状态：' + data.status;
+            }
+            content.value = '';
+            images.value = '';
+            renderPreviews();
         }
 
         imageBtn.addEventListener('click', () => images.click());
@@ -195,6 +248,14 @@
             });
             images.files = transfer.files;
             renderPreviews();
+        });
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                await submitReply();
+            } catch (error) {
+                alert(error.message || '发送失败');
+            }
         });
         document.addEventListener('click', (event) => {
             const removeButton = event.target.closest('.reply-preview-remove');
@@ -224,6 +285,7 @@
                 closeLightbox();
             }
         });
+        scrollToBottom();
     })();
 </script>
 {% endblock %}

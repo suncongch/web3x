@@ -500,16 +500,23 @@ def admin_add_ticket_message(ticket_id):
     if not admin_authenticated(username, password_hash):
         return redirect(url_for('admin_login'))
     verify_admin_csrf()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def fail(message, status_code=400):
+        if is_ajax:
+            return jsonify(success=False, error=message), status_code
+        flash(message, 'error')
+        return redirect(url_for('admin_tickets', ticket_id=ticket_id))
+
     content = request.form.get('content', '').strip()
     files = [item for item in request.files.getlist('images') if item and item.filename]
     if not content and not files:
-        abort(400, '回复内容不能为空')
+        return fail('回复内容不能为空')
     if len(content) > 5000:
-        abort(400, '回复内容不能超过 5000 个字符')
+        return fail('回复内容不能超过 5000 个字符')
     image_specs, image_error = validate_ticket_images(files)
     if image_error:
-        flash(image_error, 'error')
-        return redirect(url_for('admin_tickets', ticket_id=ticket_id))
+        return fail(image_error)
     ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
     message_text = content or ''
     saved_paths = []
@@ -530,15 +537,26 @@ def admin_add_ticket_message(ticket_id):
             if path.exists():
                 path.unlink()
         current_app.logger.exception('保存管理员工单图片失败')
-        flash('图片发送失败，请稍后重试。', 'error')
+        return fail('图片发送失败，请稍后重试。', 500)
     except SQLAlchemyError:
         db.session.rollback()
         for path in saved_paths:
             if path.exists():
                 path.unlink()
         current_app.logger.exception('保存工单回复失败')
-        flash('工单回复失败，请稍后重试。', 'error')
+        return fail('工单回复失败，请稍后重试。', 500)
     else:
+        if is_ajax:
+            return jsonify(
+                success=True,
+                message={
+                    'sender_role': message.sender_role,
+                    'content': message.content,
+                    'created_at': message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '',
+                    'images': [url_for('ticket_message_image', image_id=image.id) for image in message.images],
+                },
+                status=support_status_label(ticket.status),
+            )
         flash(f'已回复工单 #{ticket.id}。', 'success')
     return redirect(url_for('admin_tickets', ticket_id=ticket.id))
 
