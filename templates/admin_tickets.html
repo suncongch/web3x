@@ -38,7 +38,7 @@
         .status-form, .reply-form { padding: 12px; border-top: 1px solid #edf2f7; }
         .reply-input-wrap { position: relative; }
         .reply-form textarea { width: 100%; min-height: 140px; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px; padding-bottom: 86px; font: inherit; resize: vertical; }
-        .reply-previews { display: flex; flex-wrap: wrap; gap: 8px; position: absolute; left: 10px; right: 10px; bottom: 10px; pointer-events: auto; }
+        .reply-previews { display: flex; flex-wrap: wrap; gap: 8px; position: absolute; left: 10px; right: 10px; bottom: 10px; pointer-events: auto; z-index: 2; }
         .reply-preview-item { position: relative; width: 64px; height: 64px; }
         .reply-previews img { width: 64px; height: 64px; object-fit: cover; border: 1px solid #cbd5e0; border-radius: 6px; background: #fff; cursor: zoom-in; }
         .reply-preview-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border: none; border-radius: 50%; background: #1a202c; color: #fff; font-size: 12px; line-height: 18px; padding: 0; cursor: pointer; }
@@ -148,6 +148,7 @@
         const lightbox = document.getElementById('admin-image-lightbox');
         const lightboxPreview = document.getElementById('admin-image-lightbox-preview');
         let queuedFromDialog = [];
+        let previewUrls = [];
         const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
         function escapeHtml(text) {
@@ -236,11 +237,14 @@
         }
 
         function renderPreviews() {
+            previewUrls.forEach((url) => URL.revokeObjectURL(url));
+            previewUrls = [];
             previews.innerHTML = '';
             Array.from(images.files).forEach((file, index) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'reply-preview-item';
                 const objectUrl = URL.createObjectURL(file);
+                previewUrls.push(objectUrl);
                 const image = document.createElement('img');
                 image.src = objectUrl;
                 image.dataset.full = objectUrl;
@@ -355,6 +359,10 @@
             if (event.key === 'Escape' && lightbox.classList.contains('show')) {
                 closeLightbox();
             }
+        });
+        window.addEventListener('beforeunload', () => {
+            previewUrls.forEach((url) => URL.revokeObjectURL(url));
+            previewUrls = [];
         });
         scrollToBottom();
     })();
