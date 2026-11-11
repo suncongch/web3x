@@ -305,7 +305,7 @@ class AdminTest(unittest.TestCase):
         self.assertIn('已回复工单'.encode(), response.data)
         latest = TicketMessage.query.filter_by(ticket_id=ticket.id).order_by(TicketMessage.id.desc()).first()
         self.assertEqual(latest.sender_role, 'admin')
-        self.assertEqual(latest.content, '[图片]')
+        self.assertEqual(latest.content, '')
         self.assertEqual(TicketMessageImage.query.filter_by(message_id=latest.id).count(), 1)
 
 

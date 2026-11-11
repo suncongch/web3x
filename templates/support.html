@@ -93,6 +93,20 @@
         gap: 10px;
     }
 
+    .composer-previews {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .composer-previews img {
+        width: 88px;
+        height: 88px;
+        object-fit: cover;
+        border: 1px solid #cbd5e0;
+        border-radius: 6px;
+    }
+
     .composer textarea {
         width: 100%;
         min-height: 90px;
@@ -155,14 +169,16 @@
 <section class="chat-shell">
     <div class="chat-header">
         <strong>客服会话</strong>
-        <span style="color:#4a5568;">状态：{{ status_labels[ticket.status] if ticket else '未开始' }}</span>
+        <span id="chat-status" style="color:#4a5568;">状态：{{ status_labels[ticket.status] if ticket else '未开始' }}</span>
     </div>
 
     <div class="chat-window">
         {% if ticket and ticket.messages %}
             {% for message in ticket.messages|sort(attribute='id') %}
             <article class="message-row {{ message.sender_role }}">
+                {% if message.content %}
                 <div class="message-bubble">{{ message.content }}</div>
+                {% endif %}
                 {% if message.images %}
                 <div class="message-images">
                     {% for image in message.images %}
@@ -184,12 +200,13 @@
                 <div class="message-meta">你 · {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</div>
             </article>
         {% else %}
-            <p style="color:#718096;">还没有会话消息，发送第一条消息即可开始。</p>
+            <p id="chat-empty-hint" style="color:#718096;">还没有会话消息，发送第一条消息即可开始。</p>
         {% endif %}
     </div>
 
-    <form class="composer" method="post" action="{{ url_for('support_add_ticket_message') }}" enctype="multipart/form-data">
+    <form id="support-composer" class="composer" method="post" action="{{ url_for('support_add_ticket_message') }}" enctype="multipart/form-data">
         <textarea name="content" maxlength="5000" placeholder="输入消息内容（可只发图片）"></textarea>
+        <div id="composer-previews" class="composer-previews"></div>
         <div class="composer-actions">
             <div>
                 <label for="images" style="display:block; margin-bottom:4px;">上传图片（最多3张，每张≤5MB）</label>
@@ -204,16 +221,75 @@
 </section>
 <script>
     (function() {
-        const form = document.querySelector('.composer');
+        const form = document.getElementById('support-composer');
         if (!form) return;
         const content = form.querySelector('textarea[name="content"]');
         const images = form.querySelector('input[name="images"]');
+        const previews = document.getElementById('composer-previews');
+        const chatWindow = document.querySelector('.chat-window');
+        const statusElement = document.getElementById('chat-status');
+        const emptyHint = document.getElementById('chat-empty-hint');
         const imageSendBtn = document.getElementById('image-send-btn');
+
+        function escapeHtml(text) {
+            return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        }
+
+        function renderPreviews() {
+            previews.innerHTML = '';
+            Array.from(images.files).forEach((file) => {
+                const image = document.createElement('img');
+                image.src = URL.createObjectURL(file);
+                image.alt = file.name || '图片预览';
+                image.onload = () => URL.revokeObjectURL(image.src);
+                previews.appendChild(image);
+            });
+        }
+
+        function appendMessage(payload) {
+            if (emptyHint) {
+                emptyHint.remove();
+            }
+            const article = document.createElement('article');
+            article.className = 'message-row user';
+            let html = '';
+            if (payload.content) {
+                html += '<div class="message-bubble">' + escapeHtml(payload.content) + '</div>';
+            }
+            if (payload.images && payload.images.length > 0) {
+                html += '<div class="message-images">' + payload.images.map((url, index) =>
+                    '<a href="' + url + '" target="_blank" rel="noreferrer"><img src="' + url + '" alt="聊天图片 ' + (index + 1) + '"></a>'
+                ).join('') + '</div>';
+            }
+            html += '<div class="message-meta">你 · ' + escapeHtml(payload.created_at || '') + '</div>';
+            article.innerHTML = html;
+            chatWindow.appendChild(article);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        async function submitMessage() {
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || '发送失败');
+            }
+            appendMessage(data.message);
+            if (statusElement && data.status) {
+                statusElement.textContent = '状态：' + data.status;
+            }
+            content.value = '';
+            images.value = '';
+            renderPreviews();
+        }
+
         imageSendBtn.addEventListener('click', () => images.click());
         images.addEventListener('change', () => {
-            if (images.files.length > 0) {
-                form.requestSubmit();
-            }
+            renderPreviews();
         });
         content.addEventListener('paste', (event) => {
             const items = Array.from(event.clipboardData?.items || []);
@@ -227,6 +303,15 @@
                 if (file) transfer.items.add(file);
             });
             images.files = transfer.files;
+            renderPreviews();
+        });
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                await submitMessage();
+            } catch (error) {
+                alert(error.message || '发送失败');
+            }
         });
     })();
 </script>

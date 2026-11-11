@@ -511,7 +511,7 @@ def admin_add_ticket_message(ticket_id):
         flash(image_error, 'error')
         return redirect(url_for('admin_tickets', ticket_id=ticket_id))
     ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
-    message_text = content or '[图片]'
+    message_text = content or ''
     saved_paths = []
     message = TicketMessage(sender_role='admin', content=message_text)
     ticket.messages.append(message)
@@ -788,25 +788,30 @@ def support():
 def support_add_ticket_message():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def fail(message, status_code=400):
+        if is_ajax:
+            return jsonify(success=False, error=message), status_code
+        flash(message, 'error')
+        return redirect(url_for('support'))
+
     content = request.form.get('content', '').strip()
     files = [item for item in request.files.getlist('images') if item and item.filename]
     if not content and not files:
-        flash('消息内容不能为空。', 'error')
-        return redirect(url_for('support'))
+        return fail('消息内容不能为空。')
     if len(content) > 5000:
-        flash('消息内容不能超过 5000 个字符。', 'error')
-        return redirect(url_for('support'))
+        return fail('消息内容不能超过 5000 个字符。')
     image_specs, image_error = validate_ticket_images(files)
     if image_error:
-        flash(image_error, 'error')
-        return redirect(url_for('support'))
+        return fail(image_error)
     ticket = current_user_ticket(session['user_id'])
     if ticket is None:
         initial_content = content or '用户发送了图片'
         ticket = Ticket(user_id=session['user_id'], subject=DEFAULT_TICKET_SUBJECT,
                         category=DEFAULT_TICKET_CATEGORY, content=initial_content)
         db.session.add(ticket)
-    message_text = content or '[图片]'
+    message_text = content or ''
     saved_paths = []
     ticket.updated_at = datetime.utcnow()
     if ticket.status in ('resolved', 'closed'):
@@ -825,15 +830,26 @@ def support_add_ticket_message():
             if path.exists():
                 path.unlink()
         current_app.logger.exception('保存工单消息图片失败')
-        flash('图片发送失败，请稍后重试。', 'error')
+        return fail('图片发送失败，请稍后重试。', 500)
     except SQLAlchemyError:
         db.session.rollback()
         for path in saved_paths:
             if path.exists():
                 path.unlink()
         current_app.logger.exception('追加工单消息失败')
-        flash('发送失败，请稍后重试。', 'error')
+        return fail('发送失败，请稍后重试。', 500)
     else:
+        if is_ajax:
+            return jsonify(
+                success=True,
+                message={
+                    'sender_role': message.sender_role,
+                    'content': message.content,
+                    'created_at': message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '',
+                    'images': [url_for('ticket_message_image', image_id=image.id) for image in message.images],
+                },
+                status=support_status_label(ticket.status),
+            )
         flash('消息已发送。', 'success')
     return redirect(url_for('support'))
 

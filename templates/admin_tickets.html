@@ -65,7 +65,9 @@
                 {% if selected_ticket.messages %}
                     {% for message in selected_ticket.messages|sort(attribute='id') %}
                     <article class="message-row {{ message.sender_role }}">
+                        {% if message.content %}
                         <div class="message-bubble">{{ message.content }}</div>
+                        {% endif %}
                         {% if message.images %}
                         <div class="message-images">
                             {% for image in message.images %}
