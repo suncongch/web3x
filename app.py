@@ -548,6 +548,7 @@ def admin_add_ticket_message(ticket_id):
             return jsonify(
                 success=True,
                 message={
+                    'id': message.id,
                     'sender_role': message.sender_role,
                     'content': message.content,
                     'created_at': message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '',
@@ -557,6 +558,32 @@ def admin_add_ticket_message(ticket_id):
             )
         flash(f'已回复工单 #{ticket.id}。', 'success')
     return redirect(url_for('admin_tickets', ticket_id=ticket.id))
+
+
+@app.route('/admin/tickets/<int:ticket_id>/messages/poll')
+def admin_poll_ticket_messages(ticket_id):
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return jsonify(success=False, error='请先登录管理员账户'), 401
+    after_id_text = request.args.get('after_id', '0')
+    if not after_id_text.isdecimal():
+        return jsonify(success=False, error='after_id 无效'), 400
+    after_id = int(after_id_text)
+    ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
+    messages = (TicketMessage.query.options(selectinload(TicketMessage.images))
+                .filter(TicketMessage.ticket_id == ticket.id, TicketMessage.id > after_id)
+                .order_by(TicketMessage.id.asc()).all())
+    return jsonify(
+        success=True,
+        status=support_status_label(ticket.status),
+        messages=[{
+            'id': message.id,
+            'sender_role': message.sender_role,
+            'content': message.content,
+            'created_at': message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '',
+            'images': [url_for('ticket_message_image', image_id=image.id) for image in message.images],
+        } for message in messages],
+    )
 
 
 @app.route('/ticket-attachments/<int:attachment_id>')

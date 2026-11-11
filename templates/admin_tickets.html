@@ -72,10 +72,10 @@
                 <span class="ticket-meta">工单 #{{ selected_ticket.id }} · {{ selected_ticket.category }} · 创建于 {{ selected_ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if selected_ticket.created_at else '—' }}</span>
                 <span id="admin-chat-status">状态：{{ status_labels[selected_ticket.status] }}</span>
             </div>
-            <div id="admin-chat-window" class="chat-window">
+            <div id="admin-chat-window" class="chat-window" data-ticket-id="{{ selected_ticket.id }}">
                 {% if selected_ticket.messages %}
                     {% for message in selected_ticket.messages|sort(attribute='id') %}
-                    <article class="message-row {{ message.sender_role }}">
+                    <article class="message-row {{ message.sender_role }}" data-message-id="{{ message.id }}">
                         {% if message.content %}
                         <div class="message-bubble">{{ message.content }}</div>
                         {% endif %}
@@ -151,6 +151,9 @@
         let previewUrls = [];
         const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
         let lockedScrollY = 0;
+        const selectedTicketId = Number(chatWindow?.dataset.ticketId || 0);
+        let lastMessageId = 0;
+        let pollInFlight = false;
 
         function escapeHtml(text) {
             return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -158,6 +161,12 @@
 
         function scrollToBottom() {
             chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function detectLastMessageId() {
+            const nodes = chatWindow.querySelectorAll('[data-message-id]');
+            if (nodes.length === 0) return 0;
+            return Math.max(...Array.from(nodes).map((node) => Number(node.dataset.messageId || 0)));
         }
 
         function setFiles(fileList) {
@@ -281,7 +290,10 @@
                 emptyHint.remove();
             }
             const article = document.createElement('article');
-            article.className = 'message-row admin';
+            article.className = 'message-row ' + (payload.sender_role || 'admin');
+            if (payload.id) {
+                article.dataset.messageId = String(payload.id);
+            }
             let html = '';
             if (payload.content) {
                 html += '<div class="message-bubble">' + escapeHtml(payload.content) + '</div>';
@@ -291,10 +303,37 @@
                     '<img class="js-zoom-image" src="' + url + '" data-full="' + url + '" alt="消息图片 ' + (index + 1) + '">'
                 ).join('') + '</div>';
             }
-            html += '<div class="message-meta">客服 · ' + escapeHtml(payload.created_at || '') + '</div>';
+            html += '<div class="message-meta">' + (payload.sender_role === 'user' ? '用户' : '客服')
+                + ' · ' + escapeHtml(payload.created_at || '') + '</div>';
             article.innerHTML = html;
             chatWindow.appendChild(article);
+            if (payload.id && Number(payload.id) > lastMessageId) {
+                lastMessageId = Number(payload.id);
+            }
             scrollToBottom();
+        }
+
+        async function pollMessages() {
+            if (!selectedTicketId || pollInFlight) return;
+            pollInFlight = true;
+            try {
+                const response = await fetch(`/admin/tickets/${selectedTicketId}/messages/poll?after_id=${lastMessageId}`, {
+                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                });
+                if (response.status === 401) {
+                    window.location.href = '/admin/login';
+                    return;
+                }
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data.success) return;
+                if (statusElement && data.status) {
+                    statusElement.textContent = '状态：' + data.status;
+                }
+                (data.messages || []).forEach((message) => appendMessage(message));
+            } finally {
+                pollInFlight = false;
+            }
         }
 
         async function submitReply() {
@@ -375,6 +414,8 @@
                 closeLightbox();
             }
         });
+        lastMessageId = detectLastMessageId();
+        setInterval(pollMessages, 4000);
         window.addEventListener('beforeunload', () => {
             previewUrls.forEach((url) => URL.revokeObjectURL(url));
             previewUrls = [];

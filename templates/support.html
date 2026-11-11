@@ -495,8 +495,7 @@
 
         function setSendingState(sending) {
             isSending = sending;
-            content.disabled = sending;
-            images.disabled = sending;
+            content.readOnly = sending;
             imageSendBtn.disabled = sending;
             sendBtn.disabled = sending;
             sendBtn.textContent = sending ? '发送中...' : '发送';
