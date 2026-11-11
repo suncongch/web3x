@@ -34,11 +34,20 @@
         .message-row.admin .message-bubble { background: #edf2f7; color: #1a202c; border-bottom-left-radius: 4px; }
         .message-meta { font-size: 12px; color: #718096; }
         .message-images { display: flex; gap: 8px; flex-wrap: wrap; }
-        .message-images img { width: 100px; height: 100px; object-fit: cover; border: 1px solid #cbd5e0; border-radius: 6px; }
+        .message-images img { width: 100px; height: 100px; object-fit: cover; border: 1px solid #cbd5e0; border-radius: 6px; cursor: zoom-in; }
         .status-form, .reply-form { padding: 12px; border-top: 1px solid #edf2f7; }
-        .reply-form textarea { width: 100%; min-height: 90px; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px; font: inherit; resize: vertical; }
+        .reply-input-wrap { position: relative; }
+        .reply-form textarea { width: 100%; min-height: 140px; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px; padding-bottom: 86px; font: inherit; resize: vertical; }
+        .reply-previews { display: flex; flex-wrap: wrap; gap: 8px; position: absolute; left: 10px; right: 10px; bottom: 10px; pointer-events: auto; }
+        .reply-preview-item { position: relative; width: 64px; height: 64px; }
+        .reply-previews img { width: 64px; height: 64px; object-fit: cover; border: 1px solid #cbd5e0; border-radius: 6px; background: #fff; cursor: zoom-in; }
+        .reply-preview-remove { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border: none; border-radius: 50%; background: #1a202c; color: #fff; font-size: 12px; line-height: 18px; padding: 0; cursor: pointer; }
         .reply-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
         .btn-row { display: flex; gap: 8px; }
+        #admin-reply-images { display: none; }
+        .image-lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 9999; }
+        .image-lightbox.show { display: flex; }
+        .image-lightbox img { max-width: min(92vw, 1200px); max-height: 88vh; border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .45); background: #fff; }
         @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .chat-card { min-height: 560px; } }
     </style>
     <div class="layout">
@@ -71,9 +80,10 @@
                         {% if message.images %}
                         <div class="message-images">
                             {% for image in message.images %}
-                            <a href="{{ url_for('ticket_message_image', image_id=image.id) }}" target="_blank" rel="noreferrer">
-                                <img src="{{ url_for('ticket_message_image', image_id=image.id) }}" alt="消息图片 {{ loop.index }}">
-                            </a>
+                            <img class="js-zoom-image"
+                                 src="{{ url_for('ticket_message_image', image_id=image.id) }}"
+                                 data-full="{{ url_for('ticket_message_image', image_id=image.id) }}"
+                                 alt="消息图片 {{ loop.index }}">
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -101,12 +111,12 @@
 
             <form id="admin-reply-form" class="reply-form" method="post" action="{{ url_for('admin_add_ticket_message', ticket_id=selected_ticket.id) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <textarea id="admin-reply-content" name="content" maxlength="5000" placeholder="输入回复（可只发图片）"></textarea>
+                <div class="reply-input-wrap">
+                    <textarea id="admin-reply-content" name="content" maxlength="5000" placeholder="输入消息内容，可粘贴图片"></textarea>
+                    <div id="admin-reply-previews" class="reply-previews"></div>
+                </div>
                 <div class="reply-actions">
-                    <div>
-                        <label for="admin-reply-images" style="display:block; margin-bottom:4px;">上传图片（最多3张，每张≤5MB）</label>
-                        <input id="admin-reply-images" name="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
-                    </div>
+                    <input id="admin-reply-images" name="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
                     <div class="btn-row">
                         <button id="admin-image-btn" type="button">发送图片</button>
                         <button type="submit">发送回复</button>
@@ -119,18 +129,58 @@
         </div>
     </div>
 </section>
+<div id="admin-image-lightbox" class="image-lightbox" aria-hidden="true">
+    <img id="admin-image-lightbox-preview" alt="图片放大预览">
+</div>
 <script>
     (function() {
         const form = document.getElementById('admin-reply-form');
         if (!form) return;
         const content = document.getElementById('admin-reply-content');
         const images = document.getElementById('admin-reply-images');
+        const previews = document.getElementById('admin-reply-previews');
         const imageBtn = document.getElementById('admin-image-btn');
+        const lightbox = document.getElementById('admin-image-lightbox');
+        const lightboxPreview = document.getElementById('admin-image-lightbox-preview');
+
+        function openLightbox(src) {
+            lightboxPreview.src = src;
+            lightbox.classList.add('show');
+            lightbox.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('show');
+            lightbox.setAttribute('aria-hidden', 'true');
+            lightboxPreview.src = '';
+        }
+
+        function renderPreviews() {
+            previews.innerHTML = '';
+            Array.from(images.files).forEach((file, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'reply-preview-item';
+                const objectUrl = URL.createObjectURL(file);
+                const image = document.createElement('img');
+                image.src = objectUrl;
+                image.dataset.full = objectUrl;
+                image.className = 'js-zoom-image';
+                image.alt = file.name || '图片预览';
+                image.onload = () => URL.revokeObjectURL(objectUrl);
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'reply-preview-remove';
+                removeButton.dataset.removeIndex = String(index);
+                removeButton.textContent = '×';
+                wrapper.appendChild(image);
+                wrapper.appendChild(removeButton);
+                previews.appendChild(wrapper);
+            });
+        }
+
         imageBtn.addEventListener('click', () => images.click());
         images.addEventListener('change', () => {
-            if (images.files.length > 0) {
-                form.requestSubmit();
-            }
+            renderPreviews();
         });
         content.addEventListener('paste', (event) => {
             const items = Array.from(event.clipboardData?.items || []);
@@ -144,6 +194,35 @@
                 if (file) transfer.items.add(file);
             });
             images.files = transfer.files;
+            renderPreviews();
+        });
+        document.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('.reply-preview-remove');
+            if (removeButton) {
+                const removeIndex = Number(removeButton.dataset.removeIndex);
+                const transfer = new DataTransfer();
+                Array.from(images.files).forEach((file, index) => {
+                    if (index !== removeIndex) {
+                        transfer.items.add(file);
+                    }
+                });
+                images.files = transfer.files;
+                renderPreviews();
+                return;
+            }
+            const image = event.target.closest('.js-zoom-image');
+            if (image && image.dataset.full) {
+                openLightbox(image.dataset.full);
+                return;
+            }
+            if (event.target === lightbox) {
+                closeLightbox();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && lightbox.classList.contains('show')) {
+                closeLightbox();
+            }
         });
     })();
 </script>

@@ -106,7 +106,13 @@
         left: 10px;
         right: 10px;
         bottom: 10px;
-        pointer-events: none;
+        pointer-events: auto;
+    }
+
+    .composer-preview-item {
+        position: relative;
+        width: 64px;
+        height: 64px;
     }
 
     .composer-previews img {
@@ -117,6 +123,22 @@
         border-radius: 6px;
         background: #fff;
         cursor: zoom-in;
+    }
+
+    .composer-preview-remove {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        width: 18px;
+        height: 18px;
+        border: none;
+        border-radius: 50%;
+        background: #1a202c;
+        color: #fff;
+        font-size: 12px;
+        line-height: 18px;
+        padding: 0;
+        cursor: pointer;
     }
 
     .composer textarea {
@@ -294,14 +316,24 @@
 
         function renderPreviews() {
             previews.innerHTML = '';
-            Array.from(images.files).forEach((file) => {
+            Array.from(images.files).forEach((file, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'composer-preview-item';
                 const image = document.createElement('img');
                 const objectUrl = URL.createObjectURL(file);
                 image.src = objectUrl;
                 image.dataset.full = objectUrl;
                 image.className = 'js-zoom-image';
                 image.alt = file.name || '图片预览';
-                previews.appendChild(image);
+                image.onload = () => URL.revokeObjectURL(objectUrl);
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'composer-preview-remove';
+                removeButton.dataset.removeIndex = String(index);
+                removeButton.textContent = '×';
+                wrapper.appendChild(image);
+                wrapper.appendChild(removeButton);
+                previews.appendChild(wrapper);
             });
         }
 
@@ -373,6 +405,19 @@
             }
         });
         document.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('.composer-preview-remove');
+            if (removeButton) {
+                const removeIndex = Number(removeButton.dataset.removeIndex);
+                const transfer = new DataTransfer();
+                Array.from(images.files).forEach((file, index) => {
+                    if (index !== removeIndex) {
+                        transfer.items.add(file);
+                    }
+                });
+                images.files = transfer.files;
+                renderPreviews();
+                return;
+            }
             const image = event.target.closest('.js-zoom-image');
             if (image && image.dataset.full) {
                 openLightbox(image.dataset.full);
