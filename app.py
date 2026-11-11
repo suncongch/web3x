@@ -1,5 +1,6 @@
 from flask import (Flask, Response, abort, current_app, g, render_template, request,
                    redirect, url_for, session, jsonify, flash, send_file)
+from werkzeug.exceptions import NotFound
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -748,6 +749,13 @@ def subscription_links():
     except SubscriptionError:
         app.logger.error('订阅链接配置无效：PUBLIC_BASE_URL')
         return jsonify(error='订阅服务尚未配置，请联系管理员'), 503
+    try:
+        order = Order.query.filter_by(
+            user_id=user.id,
+            status='completed'
+        ).first_or_404()
+    except NotFound:
+        return jsonify(error='尚未购买订单，请购买'), 503
     try:
         panel_subscription_base('clash')
         panel_subscription_base('shadowrocket')
