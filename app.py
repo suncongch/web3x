@@ -93,6 +93,8 @@ class Ticket(db.Model):
     user = db.relationship('User')
     attachments = db.relationship('TicketAttachment', backref='ticket', lazy='select',
                                   cascade='all, delete-orphan')
+    messages = db.relationship('TicketMessage', backref='ticket', lazy='select',
+                               cascade='all, delete-orphan')
 
 
 class TicketAttachment(db.Model):
@@ -102,6 +104,14 @@ class TicketAttachment(db.Model):
     stored_name = db.Column(db.String(80), unique=True, nullable=False)
     mime_type = db.Column(db.String(50), nullable=False)
     size = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class TicketMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False, index=True)
+    sender_role = db.Column(db.String(20), nullable=False)
+    content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
@@ -226,7 +236,8 @@ def support_status_label(status):
 
 
 def render_support_page(form_error=None, form_data=None, status_code=200):
-    tickets = (Ticket.query.filter_by(user_id=session['user_id'])
+    tickets = (Ticket.query.options(selectinload(Ticket.attachments), selectinload(Ticket.messages))
+               .filter_by(user_id=session['user_id'])
                .order_by(Ticket.id.desc()).all())
     return render_template(
         'support.html',
@@ -391,7 +402,8 @@ def admin_tickets():
     username, password_hash = admin_configuration()
     if not admin_authenticated(username, password_hash):
         return redirect(url_for('admin_login'))
-    tickets = (Ticket.query.options(selectinload(Ticket.user), selectinload(Ticket.attachments))
+    tickets = (Ticket.query.options(selectinload(Ticket.user), selectinload(Ticket.attachments),
+                                    selectinload(Ticket.messages))
                .order_by(Ticket.id.desc())
                .paginate(page=admin_page_number(), per_page=25, error_out=False))
     return render_template('admin_tickets.html', tickets=tickets, csrf_token=admin_csrf_token(),
@@ -407,12 +419,8 @@ def admin_update_ticket(ticket_id):
     status = request.form.get('status', '').strip()
     if status not in TICKET_STATUSES:
         abort(400, '工单状态无效')
-    admin_reply = request.form.get('admin_reply', '').strip()
-    if len(admin_reply) > 5000:
-        abort(400, '回复内容不能超过 5000 个字符')
     ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
     ticket.status = status
-    ticket.admin_reply = admin_reply or None
     ticket.updated_at = datetime.utcnow()
     if status in ('resolved', 'closed'):
         ticket.closed_at = datetime.utcnow()
@@ -426,6 +434,38 @@ def admin_update_ticket(ticket_id):
         flash('工单更新失败，请稍后重试。', 'error')
     else:
         flash(f'工单 #{ticket.id} 已更新为“{support_status_label(status)}”。', 'success')
+    page = request.form.get('page', '')
+    if page.isdecimal() and int(page) > 0:
+        return redirect(url_for('admin_tickets', page=int(page)))
+    return redirect(url_for('admin_tickets'))
+
+
+@app.route('/admin/tickets/<int:ticket_id>/messages', methods=['POST'])
+def admin_add_ticket_message(ticket_id):
+    username, password_hash = admin_configuration()
+    if not admin_authenticated(username, password_hash):
+        return redirect(url_for('admin_login'))
+    verify_admin_csrf()
+    content = request.form.get('content', '').strip()
+    if not content:
+        abort(400, '回复内容不能为空')
+    if len(content) > 5000:
+        abort(400, '回复内容不能超过 5000 个字符')
+    ticket = Ticket.query.filter_by(id=ticket_id).first_or_404()
+    ticket.messages.append(TicketMessage(sender_role='admin', content=content))
+    ticket.updated_at = datetime.utcnow()
+    if ticket.status == 'open':
+        ticket.status = 'in_progress'
+    if ticket.status in ('resolved', 'closed'):
+        ticket.closed_at = datetime.utcnow()
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('保存工单回复失败')
+        flash('工单回复失败，请稍后重试。', 'error')
+    else:
+        flash(f'已回复工单 #{ticket.id}。', 'success')
     page = request.form.get('page', '')
     if page.isdecimal() and int(page) > 0:
         return redirect(url_for('admin_tickets', page=int(page)))
@@ -692,6 +732,7 @@ def support():
         saved_paths = []
         try:
             db.session.flush()
+            db.session.add(TicketMessage(ticket_id=ticket.id, sender_role='user', content=content))
             for upload, size, extension in attachment_specs:
                 stored_name = secrets.token_hex(24) + extension
                 file_path = ticket_upload_dir() / stored_name
@@ -722,6 +763,34 @@ def support():
         flash('工单已提交，我们会尽快处理。', 'success')
         return redirect(url_for('support'))
     return render_support_page()
+
+
+@app.route('/support/tickets/<int:ticket_id>/messages', methods=['POST'])
+def support_add_ticket_message(ticket_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    ticket = Ticket.query.filter_by(id=ticket_id, user_id=session['user_id']).first_or_404()
+    content = request.form.get('content', '').strip()
+    if not content:
+        flash('消息内容不能为空。', 'error')
+        return redirect(url_for('support'))
+    if len(content) > 5000:
+        flash('消息内容不能超过 5000 个字符。', 'error')
+        return redirect(url_for('support'))
+    ticket.messages.append(TicketMessage(sender_role='user', content=content))
+    ticket.updated_at = datetime.utcnow()
+    if ticket.status in ('resolved', 'closed'):
+        ticket.status = 'open'
+        ticket.closed_at = None
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception('追加工单消息失败')
+        flash('发送失败，请稍后重试。', 'error')
+    else:
+        flash(f'已发送到工单 #{ticket.id}。', 'success')
+    return redirect(url_for('support'))
 
 @app.route('/logout')
 def logout():

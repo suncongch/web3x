@@ -16,11 +16,21 @@
         <p {% if category == 'error' %}class="error" role="alert"{% else %}role="status"{% endif %}>{{ message }}</p>
         {% endfor %}
     {% endwith %}
+    <style>
+        .chat-window { max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; padding: 10px; display: grid; gap: 8px; margin-bottom: 8px; }
+        .message-row { max-width: 88%; display: flex; flex-direction: column; gap: 4px; }
+        .message-row.user { margin-left: auto; align-items: flex-end; }
+        .message-row.admin { margin-right: auto; align-items: flex-start; }
+        .message-bubble { padding: 8px 11px; border-radius: 10px; white-space: pre-wrap; line-height: 1.5; }
+        .message-row.user .message-bubble { background: #667eea; color: #fff; border-bottom-right-radius: 4px; }
+        .message-row.admin .message-bubble { background: #edf2f7; color: #1a202c; border-bottom-left-radius: 4px; }
+        .message-meta { font-size: 12px; color: #718096; }
+    </style>
     <div class="table-wrap">
         <table>
             <thead>
                 <tr>
-                    <th>工单</th><th>用户</th><th>状态</th><th>内容与图片</th><th>客服回复</th><th>操作</th>
+                    <th>工单</th><th>用户</th><th>状态</th><th>会话内容</th><th>状态管理</th><th>客服回复</th>
                 </tr>
             </thead>
             <tbody>
@@ -40,7 +50,30 @@
                     </td>
                     <td>{{ status_labels[ticket.status] }}</td>
                     <td style="white-space: pre-wrap;">
-                        {{ ticket.content }}
+                        <div class="chat-window">
+                            {% if ticket.messages %}
+                                {% for message in ticket.messages|sort(attribute='id') %}
+                                <div class="message-row {{ message.sender_role }}">
+                                    <div class="message-bubble">{{ message.content }}</div>
+                                    <div class="message-meta">
+                                        {{ '用户' if message.sender_role == 'user' else '客服' }} ·
+                                        {{ message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '—' }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <div class="message-row user">
+                                <div class="message-bubble">{{ ticket.content }}</div>
+                                <div class="message-meta">用户 · {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</div>
+                            </div>
+                            {% if ticket.admin_reply %}
+                            <div class="message-row admin">
+                                <div class="message-bubble">{{ ticket.admin_reply }}</div>
+                                <div class="message-meta">客服 · {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}</div>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
                         {% if ticket.attachments %}
                         <div style="margin-top: 8px;">
                             {% for attachment in ticket.attachments %}
@@ -50,7 +83,6 @@
                         </div>
                         {% endif %}
                     </td>
-                    <td style="white-space: pre-wrap;">{{ ticket.admin_reply or '—' }}</td>
                     <td>
                         <form method="post" action="{{ url_for('admin_update_ticket', ticket_id=ticket.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -63,10 +95,17 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                            <label for="reply-{{ ticket.id }}">回复</label>
-                            <textarea id="reply-{{ ticket.id }}" name="admin_reply" rows="4" maxlength="5000"
-                                      style="width: 100%; margin-bottom: 8px;">{{ ticket.admin_reply or '' }}</textarea>
-                            <button type="submit">保存</button>
+                            <button type="submit">更新状态</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" action="{{ url_for('admin_add_ticket_message', ticket_id=ticket.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="page" value="{{ tickets.page }}">
+                            <label for="reply-{{ ticket.id }}">回复消息</label>
+                            <textarea id="reply-{{ ticket.id }}" name="content" rows="4" maxlength="5000"
+                                      style="width: 100%; margin-bottom: 8px;" required placeholder="输入客服回复..."></textarea>
+                            <button type="submit">发送回复</button>
                         </form>
                     </td>
                 </tr>

@@ -126,14 +126,83 @@
         line-height: 1.6;
     }
 
-    .ticket-reply {
+    .chat-window {
         margin-top: 10px;
-        padding: 10px;
-        border-radius: 6px;
-        background: #f7fafc;
-        border-left: 3px solid #667eea;
-        color: #2d3748;
+        max-height: 320px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+    }
+
+    .message-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-width: 85%;
+    }
+
+    .message-row.user {
+        margin-left: auto;
+        align-items: flex-end;
+    }
+
+    .message-row.admin {
+        margin-right: auto;
+        align-items: flex-start;
+    }
+
+    .message-bubble {
+        padding: 9px 12px;
+        border-radius: 12px;
+        line-height: 1.5;
         white-space: pre-wrap;
+    }
+
+    .message-row.user .message-bubble {
+        background: #667eea;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-row.admin .message-bubble {
+        background: #edf2f7;
+        color: #1a202c;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message-meta {
+        font-size: 12px;
+        color: #718096;
+    }
+
+    .ticket-reply-form {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .ticket-reply-form textarea {
+        width: 100%;
+        min-height: 80px;
+        border: 1px solid #cbd5e0;
+        border-radius: 6px;
+        padding: 10px;
+        font: inherit;
+        resize: vertical;
+    }
+
+    .ticket-reply-form button {
+        justify-self: end;
+        border: none;
+        border-radius: 6px;
+        background: #4c51bf;
+        color: #fff;
+        padding: 8px 14px;
+        cursor: pointer;
     }
 
     .ticket-attachments {
@@ -163,9 +232,9 @@
 <h1 style="margin-bottom: 18px;">💬 客服工单</h1>
 <p style="color: #4a5568; margin-bottom: 20px;">提交问题后，你可以在这里查看处理进度和客服回复。</p>
 
-{% with messages = get_flashed_messages(category_filter=['success']) %}
-    {% for message in messages %}
-    <div class="alert-success" role="status">{{ message }}</div>
+{% with messages = get_flashed_messages(with_categories=true, category_filter=['success', 'error']) %}
+    {% for category, message in messages %}
+    <div class="{% if category == 'error' %}alert-error{% else %}alert-success{% endif %}" role="{% if category == 'error' %}alert{% else %}status{% endif %}">{{ message }}</div>
     {% endfor %}
 {% endwith %}
 
@@ -215,14 +284,34 @@
                     <span class="status-badge status-{{ ticket.status }}">{{ status_labels[ticket.status] }}</span>
                 </div>
                 <h3 class="ticket-subject">{{ ticket.subject }}</h3>
-                <p class="ticket-content">{{ ticket.content }}</p>
+                <div class="chat-window">
+                    {% if ticket.messages %}
+                        {% for message in ticket.messages|sort(attribute='id') %}
+                        <div class="message-row {{ message.sender_role }}">
+                            <div class="message-bubble">{{ message.content }}</div>
+                            <div class="message-meta">
+                                {{ '你' if message.sender_role == 'user' else '客服' }} ·
+                                {{ message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '—' }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="message-row user">
+                        <div class="message-bubble">{{ ticket.content }}</div>
+                        <div class="message-meta">你 · {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</div>
+                    </div>
+                    {% if ticket.admin_reply %}
+                    <div class="message-row admin">
+                        <div class="message-bubble">{{ ticket.admin_reply }}</div>
+                        <div class="message-meta">客服 · {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}</div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
                 <div class="ticket-meta" style="margin-top: 10px; margin-bottom: 0;">
                     <span>创建于 {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</span>
                     <span>更新于 {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}</span>
                 </div>
-                {% if ticket.admin_reply %}
-                <div class="ticket-reply"><strong>客服回复：</strong>{{ ticket.admin_reply }}</div>
-                {% endif %}
                 {% if ticket.attachments %}
                 <div class="ticket-attachments">
                     {% for attachment in ticket.attachments %}
@@ -232,6 +321,10 @@
                     {% endfor %}
                 </div>
                 {% endif %}
+                <form method="post" action="{{ url_for('support_add_ticket_message', ticket_id=ticket.id) }}" class="ticket-reply-form">
+                    <textarea name="content" maxlength="5000" required placeholder="继续补充信息，或回复客服"></textarea>
+                    <button type="submit">发送消息</button>
+                </form>
             </article>
             {% else %}
             <p style="color: #718096;">你还没有提交过工单。</p>

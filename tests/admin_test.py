@@ -8,7 +8,8 @@ from unittest.mock import patch
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
-from app import AppSetting, Order, Ticket, TicketAttachment, User, app, db, protect_admin_responses
+from app import (AppSetting, Order, Ticket, TicketAttachment, TicketMessage, User, app, db,
+                 protect_admin_responses)
 
 
 class AdminTest(unittest.TestCase):
@@ -237,19 +238,24 @@ class AdminTest(unittest.TestCase):
         self.assertIn('图片1', html)
         token = self.csrf(page)
         invalid = self.client.post(f'/admin/tickets/{ticket.id}', data={
-            'csrf_token': token, 'status': 'bad-status', 'admin_reply': '',
+            'csrf_token': token, 'status': 'bad-status',
         })
         self.assertEqual(invalid.status_code, 400)
         updated = self.client.post(f'/admin/tickets/{ticket.id}', data={
             'csrf_token': token,
             'status': 'resolved',
-            'admin_reply': '已修复，请重新获取订阅链接',
         }, follow_redirects=True)
         self.assertIn('已更新为“已解决”', updated.get_data(as_text=True))
         ticket = db.session.get(Ticket, ticket.id)
         self.assertEqual(ticket.status, 'resolved')
-        self.assertEqual(ticket.admin_reply, '已修复，请重新获取订阅链接')
         self.assertIsNotNone(ticket.closed_at)
+        reply = self.client.post(f'/admin/tickets/{ticket.id}/messages', data={
+            'csrf_token': token, 'content': '已修复，请重新获取订阅链接',
+        }, follow_redirects=True)
+        self.assertIn('已回复工单', reply.get_data(as_text=True))
+        latest = TicketMessage.query.filter_by(ticket_id=ticket.id).order_by(TicketMessage.id.desc()).first()
+        self.assertEqual(latest.sender_role, 'admin')
+        self.assertEqual(latest.content, '已修复，请重新获取订阅链接')
 
     def test_admin_can_open_ticket_attachment(self):
         self.assertEqual(self.client.get(f'/ticket-attachments/{self.attachment.id}').status_code, 403)

@@ -158,12 +158,15 @@ Clash 的远端 INI 和其中引用的远端规则集会作为整体缓存在 `i
 | `/purchase` | GET | 购买页面 |
 | `/tutorial` | GET | 教程页面 |
 | `/support` | GET, POST | 客服工单页面 |
+| `/support/tickets/<ticket_id>/messages` | POST | 用户追加工单消息 |
 | `/logout` | GET | 登出 |
 | `/admin/login` | GET, POST | 独立管理员登录 |
 | `/admin` | GET | 管理员查看用户列表 |
 | `/admin/users/<user_id>/orders` | GET | 管理员查看用户订单 |
 | `/admin/tickets` | GET | 管理员工单列表 |
-| `/admin/tickets/<ticket_id>` | POST | 管理员更新工单状态与回复 |
+| `/admin/tickets/<ticket_id>` | POST | 管理员更新工单状态 |
+| `/admin/tickets/<ticket_id>/messages` | POST | 管理员发送工单回复 |
+| `/ticket-attachments/<attachment_id>` | GET | 工单图片访问（鉴权） |
 | `/admin/logout` | POST | 管理员登出 |
 | `/admin/refresh-rules` | POST | 管理员立即刷新分流规则缓存 |
 
