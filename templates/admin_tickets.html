@@ -46,7 +46,7 @@
         .btn-row { display: flex; gap: 8px; }
         #admin-reply-images { display: none; }
         #admin-chat-status { color:#4a5568; margin-left: 8px; font-size: 13px; }
-        .image-lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 9999; }
+        .image-lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 9999; touch-action: none; overscroll-behavior: contain; }
         .image-lightbox.show { display: flex; }
         .image-lightbox img { max-width: min(92vw, 1200px); max-height: 88vh; border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .45); background: #fff; }
         @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .chat-card { min-height: 560px; } }
@@ -150,6 +150,7 @@
         let queuedFromDialog = [];
         let previewUrls = [];
         const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+        let lockedScrollY = 0;
 
         function escapeHtml(text) {
             return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -225,6 +226,13 @@
         }
 
         function openLightbox(src) {
+            lockedScrollY = window.scrollY || window.pageYOffset || 0;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${lockedScrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.width = '100%';
+            document.body.style.overflow = 'hidden';
             lightboxPreview.src = src;
             lightbox.classList.add('show');
             lightbox.setAttribute('aria-hidden', 'false');
@@ -234,6 +242,13 @@
             lightbox.classList.remove('show');
             lightbox.setAttribute('aria-hidden', 'true');
             lightboxPreview.src = '';
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.width = '';
+            document.body.style.overflow = '';
+            window.scrollTo(0, lockedScrollY);
         }
 
         function renderPreviews() {

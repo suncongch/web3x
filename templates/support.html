@@ -203,6 +203,8 @@
         justify-content: center;
         padding: 20px;
         z-index: 9999;
+        touch-action: none;
+        overscroll-behavior: contain;
     }
 
     .image-lightbox.show {
@@ -301,6 +303,7 @@
         let previewUrls = [];
         let queuedFromDialog = [];
         const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+        let lockedScrollY = 0;
 
         function scrollToBottom() {
             chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -372,6 +375,13 @@
         }
 
         function openLightbox(src) {
+            lockedScrollY = window.scrollY || window.pageYOffset || 0;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${lockedScrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.width = '100%';
+            document.body.style.overflow = 'hidden';
             lightboxPreview.src = src;
             lightbox.classList.add('show');
             lightbox.setAttribute('aria-hidden', 'false');
@@ -381,6 +391,13 @@
             lightbox.classList.remove('show');
             lightbox.setAttribute('aria-hidden', 'true');
             lightboxPreview.src = '';
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.width = '';
+            document.body.style.overflow = '';
+            window.scrollTo(0, lockedScrollY);
         }
 
         function escapeHtml(text) {
