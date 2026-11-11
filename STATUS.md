@@ -175,7 +175,6 @@ web3x/
 │   ├── base.html                   # 基础模板
 │   ├── login.html                  # 登录页面
 │   ├── register.html               # 注册页面
-│   ├── dashboard.html              # 仪表板
 │   ├── home.html                   # 首页
 │   ├── purchase.html               # 购买页面 ✨ 核心功能
 │   ├── tutorial.html               # 教程页面

@@ -35,7 +35,6 @@
 □ templates/base.html             - 基础模板（侧边栏+内容） (4.4 KB)
 □ templates/login.html            - 登录页面 (3.8 KB)
 □ templates/register.html         - 注册页面 (4.2 KB)
-□ templates/dashboard.html        - 仪表板/首页 (5.9 KB)
 □ templates/home.html             - 主页 (3.1 KB)
 □ templates/purchase.html         - 购买页面 (6.2 KB)
 □ templates/tutorial.html         - 教程页面 (9.6 KB)
@@ -53,7 +52,7 @@
 总文件数：16 个
 ├── Python 代码：3 个文件
 ├── 文档：4 个文件  
-├── 模板：8 个文件
+├── 模板：7 个文件
 ├── 配置：1 个文件
 
 总代码行数：约 3,000+ 行
@@ -68,14 +67,13 @@
 ├── / (GET) - 主页重定向
 ├── /register (GET, POST) - 注册
 ├── /login (GET, POST) - 登录
-├── /dashboard (GET) - 仪表板
 ├── /home (GET) - 主页
 ├── /purchase (GET) - 购买
 ├── /tutorial (GET) - 教程
 ├── /support (GET) - 客服
 └── /logout (GET) - 登出
 
-页面总数：8 个
+页面总数：7 个
 ├── 未登录页面：2 个 (登录、注册)
 ├── 已登录页面：6 个 (仪表板、主页、购买、教程、客服、共用侧边栏)
 
@@ -139,7 +137,7 @@ UI/UX 特性
 应用主页：http://localhost:5000
 登录页面：http://localhost:5000/login
 注册页面：http://localhost:5000/register
-仪表板：http://localhost:5000/dashboard
+主页：http://localhost:5000/home
 
 ================================================================================
                         依赖安装验证

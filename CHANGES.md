@@ -64,7 +64,6 @@
 │   ├── base.html                   # 基础模板
 │   ├── login.html                  # 登录页面
 │   ├── register.html               # 注册页面
-│   ├── dashboard.html              # 仪表板/主页
 │   ├── home.html                   # 首页
 │   ├── purchase.html               # 购买页面 ✨ 已完成
 │   ├── tutorial.html               # 教程页面

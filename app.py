@@ -315,7 +315,7 @@ def admin_refresh_rules():
 @app.route('/')
 def index():
     if 'user_id' in session:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
     return redirect(url_for('login'))
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -384,7 +384,7 @@ def register():
         start_user_session(user)
         if panel.failed_inbounds:
             flash('注册成功，但部分入站未能分配，请联系客服。', 'warning')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
 
     return render_template('register.html')
 
@@ -403,16 +403,9 @@ def login():
             return render_template('login.html', error='用户名或密码错误')
 
         start_user_session(user)
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
 
     return render_template('login.html')
-
-@app.route('/dashboard')
-def dashboard():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('dashboard.html', username=session.get('username'),
-                           current_order=current_product(session['user_id']))
 
 @app.route('/home')
 def home():

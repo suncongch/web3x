@@ -49,7 +49,6 @@ python3 app.py
 - ✅ **base.html** - 基础模板（侧边栏）
 - ✅ **login.html** - 登录页
 - ✅ **register.html** - 注册页
-- ✅ **dashboard.html** - 仪表板
 - ✅ **home.html** - 主页
 - ✅ **purchase.html** - 购买页（6个产品）
 - ✅ **tutorial.html** - 教程页（12个课程）

@@ -13,7 +13,6 @@ web3x/
     ├── base.html           # 基础模板（包含侧边栏）
     ├── login.html          # 登录页面
     ├── register.html       # 注册页面
-    ├── dashboard.html      # 仪表板页面
     ├── home.html           # 主页
     ├── purchase.html       # 购买页面
     ├── tutorial.html       # 教程页面
@@ -155,7 +154,6 @@ Clash 的远端 INI 和其中引用的远端规则集会作为整体缓存在 `i
 | `/` | GET | 主页重定向 |
 | `/register` | GET, POST | 用户注册 |
 | `/login` | GET, POST | 用户登录 |
-| `/dashboard` | GET | 仪表板 |
 | `/home` | GET | 主页 |
 | `/purchase` | GET | 购买页面 |
 | `/tutorial` | GET | 教程页面 |

@@ -23,7 +23,6 @@ web3x/
     ├── base.html              # 基础模板（侧边栏+内容区）
     ├── login.html             # 登录页面
     ├── register.html          # 注册页面
-    ├── dashboard.html         # 仪表板（登录后首页）
     ├── home.html              # 主页
     ├── purchase.html          # 购买页面（6个示例产品）
     ├── tutorial.html          # 教程页面（12个示例课程）
@@ -151,7 +150,6 @@ class User(db.Model):
 | `/` | GET | 主页重定向 | - |
 | `/register` | GET/POST | 用户注册 | ❌ |
 | `/login` | GET/POST | 用户登录 | ❌ |
-| `/dashboard` | GET | 仪表板 | ✅ |
 | `/home` | GET | 主页 | ✅ |
 | `/purchase` | GET | 购买页 | ✅ |
 | `/tutorial` | GET | 教程页 | ✅ |
