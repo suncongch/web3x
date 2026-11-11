@@ -71,6 +71,25 @@
         font-size: 12px;
     }
 
+    .sending-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .sending-spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid #cbd5e0;
+        border-top-color: #4c51bf;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
     .message-images {
         display: flex;
         gap: 8px;
@@ -298,12 +317,14 @@
         const statusElement = document.getElementById('chat-status');
         const emptyHint = document.getElementById('chat-empty-hint');
         const imageSendBtn = document.getElementById('image-send-btn');
+        const sendBtn = form.querySelector('button[type="submit"]');
         const lightbox = document.getElementById('image-lightbox');
         const lightboxPreview = document.getElementById('image-lightbox-preview');
         let previewUrls = [];
         let queuedFromDialog = [];
         const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
         let lockedScrollY = 0;
+        let isSending = false;
 
         function scrollToBottom() {
             chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -450,6 +471,38 @@
             scrollToBottom();
         }
 
+        function appendPendingMessage(contentText, imageUrls) {
+            if (emptyHint) {
+                emptyHint.remove();
+            }
+            const article = document.createElement('article');
+            article.className = 'message-row user pending';
+            let html = '';
+            if (contentText) {
+                html += '<div class="message-bubble">' + escapeHtml(contentText) + '</div>';
+            }
+            if (imageUrls.length > 0) {
+                html += '<div class="message-images">' + imageUrls.map((url, index) =>
+                    '<img class="js-zoom-image" src="' + url + '" data-full="' + url + '" alt="待发送图片 ' + (index + 1) + '">'
+                ).join('') + '</div>';
+            }
+            html += '<div class="message-meta"><span class="sending-indicator"><span class="sending-spinner"></span>发送中...</span></div>';
+            article.innerHTML = html;
+            chatWindow.appendChild(article);
+            scrollToBottom();
+            return article;
+        }
+
+        function setSendingState(sending) {
+            isSending = sending;
+            content.disabled = sending;
+            images.disabled = sending;
+            imageSendBtn.disabled = sending;
+            sendBtn.disabled = sending;
+            sendBtn.textContent = sending ? '发送中...' : '发送';
+            imageSendBtn.textContent = sending ? '处理中...' : '发送图片';
+        }
+
         async function submitMessage() {
             const formData = new FormData(form);
             const response = await fetch(form.action, {
@@ -461,13 +514,7 @@
             if (!response.ok || !data.success) {
                 throw new Error(data.error || '发送失败');
             }
-            appendMessage(data.message);
-            if (statusElement && data.status) {
-                statusElement.textContent = '状态：' + data.status;
-            }
-            content.value = '';
-            images.value = '';
-            renderPreviews();
+            return data;
         }
 
         imageSendBtn.addEventListener('click', () => {
@@ -494,10 +541,32 @@
         });
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (isSending) return;
+            const contentText = content.value.trim();
+            const selectedFiles = Array.from(images.files);
+            if (!contentText && selectedFiles.length === 0) {
+                alert('消息内容不能为空');
+                return;
+            }
+            const pendingUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+            const pendingMessage = appendPendingMessage(contentText, pendingUrls);
+            setSendingState(true);
             try {
-                await submitMessage();
+                const data = await submitMessage();
+                pendingMessage.remove();
+                pendingUrls.forEach((url) => URL.revokeObjectURL(url));
+                appendMessage(data.message);
+                if (statusElement && data.status) {
+                    statusElement.textContent = '状态：' + data.status;
+                }
+                content.value = '';
+                images.value = '';
+                renderPreviews();
             } catch (error) {
+                pendingMessage.querySelector('.message-meta').textContent = '发送失败，请重试';
                 alert(error.message || '发送失败');
+            } finally {
+                setSendingState(false);
             }
         });
         document.addEventListener('click', (event) => {
