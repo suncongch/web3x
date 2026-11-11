@@ -8,8 +8,8 @@ from unittest.mock import patch
 from flask import Flask
 from werkzeug.security import generate_password_hash
 
-from app import (AppSetting, Order, Ticket, TicketAttachment, TicketMessage, User, app, db,
-                 protect_admin_responses)
+from app import (AppSetting, Order, Ticket, TicketAttachment, TicketMessage, TicketMessageImage,
+                 User, app, db, protect_admin_responses)
 
 
 class AdminTest(unittest.TestCase):
@@ -52,15 +52,30 @@ class AdminTest(unittest.TestCase):
             mime_type='image/png',
             size=16,
         )
+        self.message = TicketMessage(ticket_id=ticket.id, sender_role='user', content='日志截图见下方')
+        db.session.add(self.message)
+        db.session.flush()
+        self.message_image = TicketMessageImage(
+            message_id=self.message.id,
+            original_name='chat.png',
+            stored_name='admin-test-chat.png',
+            mime_type='image/png',
+            size=16,
+        )
+        db.session.add(self.message_image)
         db.session.add(self.attachment)
         db.session.commit()
         upload_dir = Path(self.app.instance_path) / 'ticket_uploads'
         upload_dir.mkdir(parents=True, exist_ok=True)
         (upload_dir / self.attachment.stored_name).write_bytes(b'\x89PNG\r\n\x1a\n')
+        (upload_dir / self.message_image.stored_name).write_bytes(b'\x89PNG\r\n\x1a\n')
         self.client = self.app.test_client()
 
     def tearDown(self):
         upload = Path(self.app.instance_path) / 'ticket_uploads' / 'admin-test-issue.png'
+        if upload.exists():
+            upload.unlink()
+        upload = Path(self.app.instance_path) / 'ticket_uploads' / 'admin-test-chat.png'
         if upload.exists():
             upload.unlink()
         db.session.remove()
@@ -234,6 +249,7 @@ class AdminTest(unittest.TestCase):
         html = page.get_data(as_text=True)
         self.assertIn('订阅故障', html)
         self.assertIn('无法导入订阅链接', html)
+        self.assertIn('日志截图见下方', html)
         self.assertIn('&lt;alice&gt;', html)
         self.assertIn('图片1', html)
         token = self.csrf(page)
@@ -261,6 +277,13 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(self.client.get(f'/ticket-attachments/{self.attachment.id}').status_code, 403)
         self.login()
         response = self.client.get(f'/ticket-attachments/{self.attachment.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Content-Type'], 'image/png')
+
+    def test_admin_can_open_ticket_message_image(self):
+        self.assertEqual(self.client.get(f'/ticket-message-images/{self.message_image.id}').status_code, 403)
+        self.login()
+        response = self.client.get(f'/ticket-message-images/{self.message_image.id}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Content-Type'], 'image/png')
 

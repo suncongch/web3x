@@ -153,8 +153,8 @@ class User(db.Model):
 | `/home` | GET | 主页 | ✅ |
 | `/purchase` | GET | 购买页 | ✅ |
 | `/tutorial` | GET | 教程页 | ✅ |
-| `/support` | GET/POST | 客服工单页 | ✅ |
-| `/support/tickets/<ticket_id>/messages` | POST | 用户追加工单消息 | ✅ |
+| `/support` | GET | 客服对话页 | ✅ |
+| `/support/messages` | POST | 用户发送消息/图片 | ✅ |
 | `/logout` | GET | 登出 | ✅ |
 
 ## ⚙️ 配置说明

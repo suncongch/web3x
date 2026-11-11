@@ -1,148 +1,40 @@
 {% extends "base.html" %}
 
-{% block title %}客服工单 - Web3X{% endblock %}
+{% block title %}在线客服 - Web3X{% endblock %}
 
 {% block extra_css %}
 <style>
-    .ticket-layout {
-        display: grid;
-        grid-template-columns: 1.1fr 1fr;
-        gap: 24px;
-    }
-
-    .panel {
+    .chat-shell {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
         background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 22px;
+        overflow: hidden;
     }
 
-    .panel h2 {
-        margin-bottom: 14px;
-        color: #2d3748;
-    }
-
-    .hint {
-        color: #4a5568;
-        margin-bottom: 16px;
-    }
-
-    .field {
-        margin-bottom: 14px;
-    }
-
-    .field label {
-        display: block;
-        margin-bottom: 6px;
-        color: #2d3748;
-        font-weight: 600;
-    }
-
-    .field input,
-    .field select,
-    .field textarea {
-        width: 100%;
-        border: 1px solid #cbd5e0;
-        border-radius: 6px;
-        padding: 10px;
-        font: inherit;
-    }
-
-    .field textarea {
-        min-height: 140px;
-        resize: vertical;
-    }
-
-    .submit-btn {
-        border: none;
-        border-radius: 6px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #fff;
-        padding: 11px 18px;
-        cursor: pointer;
-        font-weight: 600;
-    }
-
-    .alert-error {
-        background: #fff5f5;
-        color: #9b2c2c;
-        border: 1px solid #feb2b2;
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 14px;
-    }
-
-    .alert-success {
-        background: #f0fff4;
-        color: #22543d;
-        border: 1px solid #9ae6b4;
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 14px;
-    }
-
-    .ticket-list {
-        display: grid;
-        gap: 12px;
-    }
-
-    .ticket-item {
+    .chat-header {
+        padding: 14px 18px;
         background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 14px;
-    }
-
-    .ticket-meta {
+        border-bottom: 1px solid #e2e8f0;
         display: flex;
         justify-content: space-between;
-        gap: 10px;
+        gap: 12px;
         flex-wrap: wrap;
-        margin-bottom: 8px;
-        color: #4a5568;
-        font-size: 13px;
-    }
-
-    .status-badge {
-        border-radius: 999px;
-        padding: 3px 10px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .status-open { background: #ebf8ff; color: #2b6cb0; }
-    .status-in_progress { background: #fffbea; color: #975a16; }
-    .status-resolved { background: #f0fff4; color: #276749; }
-    .status-closed { background: #edf2f7; color: #4a5568; }
-
-    .ticket-subject {
-        margin-bottom: 8px;
-        color: #1a202c;
-    }
-
-    .ticket-content {
-        white-space: pre-wrap;
-        color: #2d3748;
-        line-height: 1.6;
     }
 
     .chat-window {
-        margin-top: 10px;
-        max-height: 320px;
+        min-height: 320px;
+        max-height: 520px;
         overflow-y: auto;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        background: #f8fafc;
-        padding: 12px;
+        padding: 16px;
         display: grid;
-        gap: 10px;
+        gap: 12px;
     }
 
     .message-row {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        max-width: 85%;
+        max-width: 80%;
     }
 
     .message-row.user {
@@ -156,10 +48,10 @@
     }
 
     .message-bubble {
-        padding: 9px 12px;
         border-radius: 12px;
-        line-height: 1.5;
+        padding: 10px 12px;
         white-space: pre-wrap;
+        line-height: 1.5;
     }
 
     .message-row.user .message-bubble {
@@ -175,62 +67,74 @@
     }
 
     .message-meta {
-        font-size: 12px;
         color: #718096;
+        font-size: 12px;
     }
 
-    .ticket-reply-form {
-        margin-top: 12px;
-        display: grid;
+    .message-images {
+        display: flex;
         gap: 8px;
+        flex-wrap: wrap;
     }
 
-    .ticket-reply-form textarea {
-        width: 100%;
-        min-height: 80px;
+    .message-images img {
+        width: 110px;
+        height: 110px;
+        object-fit: cover;
+        border-radius: 8px;
         border: 1px solid #cbd5e0;
-        border-radius: 6px;
+    }
+
+    .composer {
+        border-top: 1px solid #e2e8f0;
+        background: #fff;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+    }
+
+    .composer textarea {
+        width: 100%;
+        min-height: 90px;
+        border: 1px solid #cbd5e0;
+        border-radius: 8px;
         padding: 10px;
         font: inherit;
         resize: vertical;
     }
 
-    .ticket-reply-form button {
-        justify-self: end;
+    .composer-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .send-btn {
         border: none;
-        border-radius: 6px;
+        border-radius: 8px;
         background: #4c51bf;
         color: #fff;
-        padding: 8px 14px;
+        padding: 9px 16px;
         cursor: pointer;
+        font-weight: 600;
     }
 
-    .ticket-attachments {
-        margin-top: 10px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+    .alert-error, .alert-success {
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
     }
 
-    .ticket-attachments img {
-        width: 120px;
-        height: 120px;
-        object-fit: cover;
-        border-radius: 6px;
-        border: 1px solid #e2e8f0;
-    }
-
-    @media (max-width: 900px) {
-        .ticket-layout {
-            grid-template-columns: 1fr;
-        }
-    }
+    .alert-error { background: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; }
+    .alert-success { background: #f0fff4; color: #22543d; border: 1px solid #9ae6b4; }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom: 18px;">💬 客服工单</h1>
-<p style="color: #4a5568; margin-bottom: 20px;">提交问题后，你可以在这里查看处理进度和客服回复。</p>
+<h1 style="margin-bottom: 12px;">💬 在线客服</h1>
+<p style="color: #4a5568; margin-bottom: 18px;">直接发送消息或截图，客服会在同一对话中回复。</p>
 
 {% with messages = get_flashed_messages(with_categories=true, category_filter=['success', 'error']) %}
     {% for category, message in messages %}
@@ -238,98 +142,51 @@
     {% endfor %}
 {% endwith %}
 
-<div class="ticket-layout">
-    <section class="panel">
-        <h2>创建工单</h2>
-        <p class="hint">请尽量描述清楚问题场景、时间和期望结果。</p>
-        {% if form_error %}
-        <p class="alert-error" role="alert">{{ form_error }}</p>
-        {% endif %}
-        <form method="post" enctype="multipart/form-data">
-            <div class="field">
-                <label for="subject">工单主题</label>
-                <input id="subject" name="subject" maxlength="120" required
-                       value="{{ form_data.get('subject', '') }}" placeholder="例如：订阅链接无法导入">
-            </div>
-            <div class="field">
-                <label for="category">问题分类</label>
-                <select id="category" name="category" required>
-                    {% for category in categories %}
-                    <option value="{{ category }}" {% if form_data.get('category') == category %}selected{% endif %}>
-                        {{ category }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="field">
-                <label for="content">问题描述</label>
-                <textarea id="content" name="content" maxlength="5000" required
-                          placeholder="请描述问题复现步骤、报错信息等">{{ form_data.get('content', '') }}</textarea>
-            </div>
-            <div class="field">
-                <label for="images">问题截图（可选，最多3张，每张≤5MB）</label>
-                <input id="images" name="images" type="file" accept="{{ ','.join(image_mime_types) }}" multiple>
-            </div>
-            <button type="submit" class="submit-btn">提交工单</button>
-        </form>
-    </section>
+<section class="chat-shell">
+    <div class="chat-header">
+        <strong>客服会话</strong>
+        <span style="color:#4a5568;">状态：{{ status_labels[ticket.status] if ticket else '未开始' }}</span>
+    </div>
 
-    <section class="panel">
-        <h2>我的工单</h2>
-        <div class="ticket-list">
-            {% for ticket in tickets %}
-            <article class="ticket-item">
-                <div class="ticket-meta">
-                    <span>#{{ ticket.id }} · {{ ticket.category }}</span>
-                    <span class="status-badge status-{{ ticket.status }}">{{ status_labels[ticket.status] }}</span>
-                </div>
-                <h3 class="ticket-subject">{{ ticket.subject }}</h3>
-                <div class="chat-window">
-                    {% if ticket.messages %}
-                        {% for message in ticket.messages|sort(attribute='id') %}
-                        <div class="message-row {{ message.sender_role }}">
-                            <div class="message-bubble">{{ message.content }}</div>
-                            <div class="message-meta">
-                                {{ '你' if message.sender_role == 'user' else '客服' }} ·
-                                {{ message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '—' }}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                    <div class="message-row user">
-                        <div class="message-bubble">{{ ticket.content }}</div>
-                        <div class="message-meta">你 · {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</div>
-                    </div>
-                    {% if ticket.admin_reply %}
-                    <div class="message-row admin">
-                        <div class="message-bubble">{{ ticket.admin_reply }}</div>
-                        <div class="message-meta">客服 · {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}</div>
-                    </div>
-                    {% endif %}
-                    {% endif %}
-                </div>
-                <div class="ticket-meta" style="margin-top: 10px; margin-bottom: 0;">
-                    <span>创建于 {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</span>
-                    <span>更新于 {{ ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.updated_at else '—' }}</span>
-                </div>
-                {% if ticket.attachments %}
-                <div class="ticket-attachments">
-                    {% for attachment in ticket.attachments %}
-                    <a href="{{ url_for('ticket_attachment', attachment_id=attachment.id) }}" target="_blank" rel="noreferrer">
-                        <img src="{{ url_for('ticket_attachment', attachment_id=attachment.id) }}" alt="工单截图 {{ loop.index }}">
+    <div class="chat-window">
+        {% if ticket and ticket.messages %}
+            {% for message in ticket.messages|sort(attribute='id') %}
+            <article class="message-row {{ message.sender_role }}">
+                <div class="message-bubble">{{ message.content }}</div>
+                {% if message.images %}
+                <div class="message-images">
+                    {% for image in message.images %}
+                    <a href="{{ url_for('ticket_message_image', image_id=image.id) }}" target="_blank" rel="noreferrer">
+                        <img src="{{ url_for('ticket_message_image', image_id=image.id) }}" alt="聊天图片 {{ loop.index }}">
                     </a>
                     {% endfor %}
                 </div>
                 {% endif %}
-                <form method="post" action="{{ url_for('support_add_ticket_message', ticket_id=ticket.id) }}" class="ticket-reply-form">
-                    <textarea name="content" maxlength="5000" required placeholder="继续补充信息，或回复客服"></textarea>
-                    <button type="submit">发送消息</button>
-                </form>
+                <div class="message-meta">
+                    {{ '你' if message.sender_role == 'user' else '客服' }} ·
+                    {{ message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '—' }}
+                </div>
             </article>
-            {% else %}
-            <p style="color: #718096;">你还没有提交过工单。</p>
             {% endfor %}
+        {% elif ticket %}
+            <article class="message-row user">
+                <div class="message-bubble">{{ ticket.content }}</div>
+                <div class="message-meta">你 · {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</div>
+            </article>
+        {% else %}
+            <p style="color:#718096;">还没有会话消息，发送第一条消息即可开始。</p>
+        {% endif %}
+    </div>
+
+    <form class="composer" method="post" action="{{ url_for('support_add_ticket_message') }}" enctype="multipart/form-data">
+        <textarea name="content" maxlength="5000" placeholder="输入消息内容（可只发图片）"></textarea>
+        <div class="composer-actions">
+            <div>
+                <label for="images" style="display:block; margin-bottom:4px;">上传图片（最多3张，每张≤5MB）</label>
+                <input id="images" name="images" type="file" accept="{{ ','.join(image_mime_types) }}" multiple>
+            </div>
+            <button type="submit" class="send-btn">发送</button>
         </div>
-    </section>
-</div>
+    </form>
+</section>
 {% endblock %}

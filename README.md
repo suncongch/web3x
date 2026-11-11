@@ -157,8 +157,8 @@ Clash 的远端 INI 和其中引用的远端规则集会作为整体缓存在 `i
 | `/home` | GET | 主页 |
 | `/purchase` | GET | 购买页面 |
 | `/tutorial` | GET | 教程页面 |
-| `/support` | GET, POST | 客服工单页面 |
-| `/support/tickets/<ticket_id>/messages` | POST | 用户追加工单消息 |
+| `/support` | GET | 客服对话页面 |
+| `/support/messages` | POST | 用户发送消息/图片 |
 | `/logout` | GET | 登出 |
 | `/admin/login` | GET, POST | 独立管理员登录 |
 | `/admin` | GET | 管理员查看用户列表 |

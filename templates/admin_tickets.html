@@ -55,6 +55,13 @@
                                 {% for message in ticket.messages|sort(attribute='id') %}
                                 <div class="message-row {{ message.sender_role }}">
                                     <div class="message-bubble">{{ message.content }}</div>
+                                    {% if message.images %}
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        {% for image in message.images %}
+                                        <a href="{{ url_for('ticket_message_image', image_id=image.id) }}" target="_blank" rel="noreferrer">图片{{ loop.index }}</a>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
                                     <div class="message-meta">
                                         {{ '用户' if message.sender_role == 'user' else '客服' }} ·
                                         {{ message.created_at.strftime('%Y-%m-%d %H:%M:%S') if message.created_at else '—' }}
