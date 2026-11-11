@@ -19,7 +19,7 @@ from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from clash_config import INCLUDE_PATTERN
-from three_xui import DuplicateClientError, PanelError, PanelRequestError, ThreeXUI
+from three_xui import PanelError, ThreeXUI
 from subscription import (SubscriptionError, build_subscription, cached_rule_config, clash_attachment_filename,
                           extra_urls, panel_subscription_base, public_url)
 from urllib.parse import quote
@@ -78,6 +78,27 @@ TICKET_STATUS_LABELS = {
     'in_progress': '处理中',
     'resolved': '已解决',
     'closed': '已关闭',
+}
+
+PURCHASE_PLANS = {
+    '企业方案': {
+        'allow_repeat': False,
+        'activate_total_gb': 35,
+        'renew_total_gb': None,
+        'extend_days': 30,
+    },
+    'Web3 入门套件': {
+        'allow_repeat': True,
+        'activate_total_gb': 100,
+        'renew_total_gb': 100,
+        'extend_days': 31,
+    },
+    '高级开发套件': {
+        'allow_repeat': True,
+        'activate_total_gb': 100,
+        'renew_total_gb': None,
+        'extend_days': 92,
+    },
 }
 
 
@@ -151,6 +172,18 @@ with app.app_context():
 def current_product(user_id):
     return (Order.query.filter_by(user_id=user_id, status='completed')
             .order_by(Order.id.desc()).first())
+
+
+def apply_purchase_plan(user, product_name):
+    plan = PURCHASE_PLANS[product_name]
+    panel = ThreeXUI()
+    panel.ensure_client_plan(
+        user.username,
+        user.email,
+        activate_total_gb=plan['activate_total_gb'],
+        renew_total_gb=plan['renew_total_gb'],
+        extend_days=plan['extend_days'],
+    )
 
 
 def random_client_email():
@@ -650,8 +683,7 @@ def register():
         if email and User.query.filter_by(email=email).first():
             return render_template('register.html', error='邮箱已注册')
 
-        generated_email = not email
-        if generated_email:
+        if not email:
             for _ in range(10):
                 email = random_client_email()
                 if not User.query.filter_by(email=email).first():
@@ -664,34 +696,12 @@ def register():
         user.set_password(password)
         db.session.add(user)
         try:
-            db.session.flush()
-        except IntegrityError:
-            db.session.rollback()
-            return render_template('register.html', error='用户名或邮箱已存在')
-        panel = ThreeXUI()
-        try:
-            client_email = panel.create_client(username, email, generated_email)
-        except DuplicateClientError as exc:
-            db.session.rollback()
-            return render_template('register.html', error=str(exc))
-        except PanelError as exc:
-            db.session.rollback()
-            app.logger.error('客户端创建失败：%s', exc)
-            return render_template('register.html', error='客户端创建失败，注册未完成；请联系管理员检查面板')
-        try:
             db.session.commit()
         except SQLAlchemyError:
             db.session.rollback()
-            app.logger.exception('用户注册保存失败，正在清理已创建的客户端')
-            try:
-                panel.delete_client(client_email)
-            except PanelError:
-                app.logger.exception('客户端清理失败，请检查面板')
             return render_template('register.html', error='注册保存失败，请联系管理员检查面板')
 
         start_user_session(user)
-        if panel.failed_inbounds:
-            flash('注册成功，但部分入站未能分配，请联系客服。', 'warning')
         return redirect(url_for('home'))
 
     return render_template('register.html')
@@ -938,27 +948,63 @@ def api_purchase():
             'message': '产品名称和价格不能为空'
         }), 400
     
+    if product_name not in PURCHASE_PLANS:
+        return jsonify({
+            'success': False,
+            'message': '产品不存在或暂不支持购买'
+        }), 400
+
+    user_id = session.get('user_id')
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify({
+            'success': False,
+            'message': '用户不存在，请重新登录'
+        }), 401
+
+    plan = PURCHASE_PLANS[product_name]
+    if not plan['allow_repeat']:
+        exists = (Order.query.filter_by(user_id=user_id, product_name=product_name, status='completed')
+                  .first())
+        if exists is not None:
+            return jsonify({
+                'success': False,
+                'message': '该产品仅可购买一次'
+            }), 400
+
     try:
-        # 创建订单
+        apply_purchase_plan(user, product_name)
         order = Order(
-            user_id=session.get('user_id'),
+            user_id=user_id,
             product_name=product_name,
             price=float(price),
             status='completed'
         )
         db.session.add(order)
         db.session.commit()
-        
         return jsonify({
             'success': True,
-            'message': '购买成功',
+            'message': '购买成功，套餐已开通',
             'order_id': order.id
         }), 200
-    except Exception as e:
+    except PanelError as exc:
         db.session.rollback()
+        app.logger.error('开通套餐失败：%s', exc)
         return jsonify({
             'success': False,
-            'message': '购买失败: ' + str(e)
+            'message': '套餐开通失败，请稍后重试'
+        }), 503
+    except (ValueError, TypeError):
+        return jsonify({
+            'success': False,
+            'message': '产品价格无效'
+        }), 400
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception('购买订单保存失败')
+        return jsonify({
+            'success': False,
+            'message': '购买失败，请稍后重试'
         }), 500
 
 if __name__ == '__main__':

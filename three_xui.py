@@ -35,6 +35,8 @@ def _request_label(path):
         '/panel/api/inbounds/list': 'inbounds_list',
         '/panel/api/clients/list': 'clients_list',
         '/panel/api/clients/add': 'clients_add',
+        '/panel/api/clients/update': 'clients_update',
+        '/panel/api/clients/del': 'clients_delete',
     }
     if path in fixed_paths:
         return fixed_paths[path]
@@ -169,6 +171,7 @@ class ThreeXUI:
         return email
 
     def delete_client(self, email):
+        self.login()
         self.request('/panel/api/clients/del/' + quote(email, safe=''), {})
 
     def get_client(self, email):
@@ -197,3 +200,50 @@ class ThreeXUI:
                        for key in ('up', 'down'))):
             raise PanelRequestError('3x-ui 客户端流量信息无效')
         return result
+
+    def ensure_client_plan(self, username, email, *, activate_total_gb, renew_total_gb, extend_days):
+        if type(activate_total_gb) is not int or activate_total_gb <= 0:
+            raise ValueError('activate_total_gb 必须为正整数')
+        if renew_total_gb is not None and (type(renew_total_gb) is not int or renew_total_gb <= 0):
+            raise ValueError('renew_total_gb 必须为正整数或 None')
+        if type(extend_days) is not int or extend_days <= 0:
+            raise ValueError('extend_days 必须为正整数')
+
+        self.login()
+        clients = self.request('/panel/api/clients/list')
+        if not isinstance(clients, list):
+            raise PanelRequestError('3x-ui 客户端列表格式无效')
+
+        target = None
+        for client in clients:
+            if not isinstance(client, dict) or not isinstance(client.get('email'), str):
+                raise PanelRequestError('3x-ui 客户端列表格式无效')
+            if client['email'].casefold() == email.casefold():
+                target = client
+                break
+
+        if target is None:
+            expiry_time = int((time.time() + extend_days * 24 * 60 * 60) * 1000)
+            total_gb = activate_total_gb * 1024 ** 3
+            self.create_client(username, email, False, expiry_time=expiry_time, total_gb=total_gb)
+            return
+
+        current_expiry = target.get('expiryTime')
+        now_ms = int(time.time() * 1000)
+        if type(current_expiry) is not int or current_expiry < 0:
+            current_expiry = 0
+        base_expiry = current_expiry if current_expiry > now_ms else now_ms
+        target['expiryTime'] = base_expiry + extend_days * 24 * 60 * 60 * 1000
+        if renew_total_gb is not None:
+            target['totalGB'] = renew_total_gb * 1024 ** 3
+        target['enable'] = True
+
+        inbound_ids = target.get('inboundIds')
+        if (not isinstance(inbound_ids, list) or not inbound_ids
+                or any(type(item) is not int or item <= 0 for item in inbound_ids)):
+            raise PanelRequestError('3x-ui 客户端入站信息无效')
+
+        self.request('/panel/api/clients/update', {
+            'client': target,
+            'inboundIds': inbound_ids,
+        })
