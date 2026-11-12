@@ -730,8 +730,15 @@ def login():
 def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('home.html', username=session.get('username'),
-                           current_order=current_product(session['user_id']))
+    user = db.session.get(User, session['user_id'])
+    order = current_product(session['user_id'])
+    usage_info = current_usage_info(user) if order else None
+    return render_template(
+        'home.html',
+        username=session.get('username'),
+        current_order=order,
+        usage_info=usage_info,
+    )
 
 
 @app.route('/api/subscription-links', methods=['POST'])
@@ -1040,6 +1047,56 @@ def api_purchase():
             'success': False,
             'message': '购买失败，请稍后重试'
         }), 500
+
+def format_bytes(size_bytes):
+    if size_bytes <= 0:
+        return '0 B'
+    units = ('B', 'KB', 'MB', 'GB', 'TB')
+    idx = 0
+    value = float(size_bytes)
+    while value >= 1024 and idx < len(units) - 1:
+        value /= 1024.0
+        idx += 1
+    return f'{value:.2f} {units[idx]}'
+
+
+def current_usage_info(user):
+    """获取用户的到期日期与剩余流量"""
+    if user is None:
+        return None
+    try:
+        result = build_subscription(
+            ThreeXUI(),
+            user.email,
+            user.username,
+            'clash',
+            include_external_nodes=user.can_use_external_nodes,
+            include_pattern=current_node_filter_pattern(),
+        )
+        # 计算到期时间
+        if result.expiry_ms and result.expiry_ms > 0:
+            expiry_str = datetime.fromtimestamp(result.expiry_ms / 1000).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            expiry_str = '长期有效'
+
+        # 计算剩余流量
+        if result.total and result.total > 0:
+            used = (result.upload or 0) + (result.download or 0)
+            remaining = max(0, result.total - used)
+            remaining_str = f'{format_bytes(remaining)} / {format_bytes(result.total)}'
+        else:
+            remaining_str = '无限流量'
+
+        return {
+            'expiry_date': expiry_str,
+            'remaining_traffic': remaining_str,
+        }
+    except Exception as exc:
+        current_app.logger.warning('获取用户流量与到期时间失败：%s', exc)
+        return {
+            'expiry_date': '获取失败',
+            'remaining_traffic': '获取失败',
+        }
 
 if __name__ == '__main__':
     app.run(host='192.168.2.17', debug=False, port=8000)

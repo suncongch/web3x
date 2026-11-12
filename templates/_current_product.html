@@ -3,6 +3,10 @@
     {% if current_order %}
     <p style="margin-top: 12px;"><strong>{{ current_order.product_name }}</strong></p>
     <p style="margin-top: 8px; color: #4a5568;">购买价格：¥{{ '%g'|format(current_order.price) }}</p>
+    {% if usage_info %}
+    <p style="margin-top: 8px; color: #4a5568;">到期时间：{{ usage_info.expiry_date }}</p>
+    <p style="margin-top: 4px; color: #4a5568;">剩余流量：{{ usage_info.remaining_traffic }}</p>
+    {% endif %}
     {% else %}
     <p style="margin-top: 12px; color: #4a5568;">您还没有购买产品。<a href="{{ url_for('purchase') }}">去购买</a></p>
     {% endif %}
