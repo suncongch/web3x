@@ -256,10 +256,12 @@
         <span id="chat-status" style="color:#4a5568;">状态：{{ status_labels[ticket.status] if ticket else '未开始' }}</span>
     </div>
 
-    <div class="chat-window">
+    <!-- 加上了 data-ticket-id 属性以便 JS 获取当前工单 ID -->
+    <div class="chat-window" data-ticket-id="{{ ticket.id if ticket else 0 }}">
         {% if ticket and ticket.messages %}
             {% for message in ticket.messages|sort(attribute='id') %}
-            <article class="message-row {{ message.sender_role }}">
+            <!-- 加上了 data-message-id 属性以便识别消息 ID -->
+            <article class="message-row {{ message.sender_role }}" data-message-id="{{ message.id }}">
                 {% if message.content %}
                 <div class="message-bubble">{{ message.content }}</div>
                 {% endif %}
@@ -280,7 +282,7 @@
             </article>
             {% endfor %}
         {% elif ticket %}
-            <article class="message-row user">
+            <article id="chat-empty-hint" class="message-row user">
                 <div class="message-bubble">{{ ticket.content }}</div>
                 <div class="message-meta">你 · {{ ticket.created_at.strftime('%Y-%m-%d %H:%M:%S') if ticket.created_at else '—' }}</div>
             </article>
@@ -326,8 +328,20 @@
         let lockedScrollY = 0;
         let isSending = false;
 
+        // 获取当前工单 ID 和初始化最后一条消息 ID
+        const selectedTicketId = Number(chatWindow?.dataset.ticketId || 0);
+        let lastMessageId = 0;
+        let pollInFlight = false;
+
         function scrollToBottom() {
             chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // 检测当前 DOM 中已有的最大消息 ID
+        function detectLastMessageId() {
+            const nodes = chatWindow.querySelectorAll('[data-message-id]');
+            if (nodes.length === 0) return 0;
+            return Math.max(...Array.from(nodes).map((node) => Number(node.dataset.messageId || 0)));
         }
 
         function setFiles(fileList) {
@@ -455,7 +469,11 @@
                 emptyHint.remove();
             }
             const article = document.createElement('article');
-            article.className = 'message-row user';
+            // 支持根据后台传回的 sender_role（例如 'user' 或 'admin'）正确显示样式
+            article.className = 'message-row ' + (payload.sender_role || 'user');
+            if (payload.id) {
+                article.dataset.messageId = String(payload.id);
+            }
             let html = '';
             if (payload.content) {
                 html += '<div class="message-bubble">' + escapeHtml(payload.content) + '</div>';
@@ -465,9 +483,13 @@
                     '<img class="js-zoom-image" src="' + url + '" data-full="' + url + '" alt="聊天图片 ' + (index + 1) + '">'
                 ).join('') + '</div>';
             }
-            html += '<div class="message-meta">你 · ' + escapeHtml(payload.created_at || '') + '</div>';
+            const senderText = (payload.sender_role === 'admin') ? '客服' : '你';
+            html += '<div class="message-meta">' + senderText + ' · ' + escapeHtml(payload.created_at || '') + '</div>';
             article.innerHTML = html;
             chatWindow.appendChild(article);
+            if (payload.id && Number(payload.id) > lastMessageId) {
+                lastMessageId = Number(payload.id);
+            }
             scrollToBottom();
         }
 
@@ -514,6 +536,31 @@
                 throw new Error(data.error || '发送失败');
             }
             return data;
+        }
+
+        // 定时轮询获取新消息的函数
+        async function pollMessages() {
+            if (!selectedTicketId || pollInFlight) return;
+            pollInFlight = true;
+            try {
+                // 注意：请确保后端提供了对应的用户端轮询路由（如 /support/tickets/messages/poll 或类似）
+                const response = await fetch(`/support/messages/poll?after_id=${lastMessageId}`, {
+                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                });
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data.success) return;
+                if (statusElement && data.status) {
+                    statusElement.textContent = '状态：' + data.status;
+                }
+                (data.messages || []).forEach((message) => appendMessage(message));
+            } finally {
+                pollInFlight = false;
+            }
         }
 
         imageSendBtn.addEventListener('click', () => {
@@ -596,6 +643,11 @@
                 closeLightbox();
             }
         });
+
+        // 初始化最后一条消息 ID，并开启每 4 秒一次的定时轮询
+        lastMessageId = detectLastMessageId();
+        setInterval(pollMessages, 4000);
+
         window.addEventListener('beforeunload', () => {
             previewUrls.forEach((url) => URL.revokeObjectURL(url));
             previewUrls = [];
