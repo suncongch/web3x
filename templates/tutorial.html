@@ -4,67 +4,95 @@
 
 {% block extra_css %}
 <style>
-    .tutorial-buttons {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 16px;
+    .section-title {
+        margin-bottom: 30px;
+        font-size: 28px;
+        color: #2d3748;
     }
 
-    .tutorial-btn {
-        padding: 8px 16px;
-        border: 2px solid #cbd5e0;
-        background: white;
-        color: #4a5568;
-        border-radius: 5px;
-        text-decoration: none;
-    }
-
-    .tutorial-btn:hover,
-    .tutorial-btn:focus-visible {
-        border-color: #667eea;
-        color: #667eea;
-    }
-
-    .tutorial-btn.active {
-        background: #667eea;
-        color: white;
-        border-color: #667eea;
+    .category-title {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e2e8f0;
+        font-size: 20px;
+        color: #2d3748;
     }
 
     .tutorial-card {
-        display: block;
-        max-width: 640px;
-        margin-top: 20px;
-        padding: 24px;
+        display: flex;
+        overflow: hidden;
         background: white;
         border: 1px solid #e2e8f0;
         border-radius: 10px;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
     }
 
-    .tutorial-card h2 {
-        margin-bottom: 12px;
-        font-size: 20px;
+    .tutorial-card:hover,
+    .tutorial-card:focus-within {
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
     }
 
-    .tutorial-link {
-        color: #4c51bf;
-        text-underline-offset: 3px;
+    .tutorial-icon {
+        display: grid;
+        flex: 0 0 120px;
+        place-items: center;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        font-size: 48px;
+    }
+
+    .tutorial-content {
+        flex: 1;
+        padding: 25px;
+    }
+
+    .tutorial-title {
+        margin-bottom: 8px;
+        color: #2d3748;
+        font-size: 18px;
+    }
+
+    .tutorial-description {
+        margin-bottom: 16px;
+        color: #4a5568;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .tutorial-btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #505ec2, #764ba2);
+        border-radius: 5px;
+        color: white;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    @media (max-width: 768px) {
+        .tutorial-card {
+            flex-direction: column;
+        }
+
+        .tutorial-icon {
+            flex-basis: 100px;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1>教程</h1>
-{% set mac_selected = request.args.get('category') == 'mac' %}
-<nav class="tutorial-buttons" aria-label="教程分类">
-    <a class="tutorial-btn{% if not mac_selected %} active{% endif %}" href="{{ url_for('tutorial') }}"
-       {% if not mac_selected %}aria-current="page"{% endif %}>全部</a>
-    <a class="tutorial-btn{% if mac_selected %} active{% endif %}" href="{{ url_for('tutorial', category='mac') }}"
-       {% if mac_selected %}aria-current="page"{% endif %}>Mac</a>
-</nav>
-<section class="tutorial-card">
-    <h2><a class="tutorial-link" href="{{ url_for('mac_tutorial') }}">FlClash macOS 使用教程</a></h2>
-    <p>安装 FlClash、导入订阅并测试连接。</p>
+<h1 class="section-title">📚 学习教程</h1>
+<section aria-labelledby="mac-tutorial-title">
+    <h2 id="mac-tutorial-title" class="category-title">Mac 教程</h2>
+    <article class="tutorial-card">
+        <div class="tutorial-icon" aria-hidden="true">💻</div>
+        <div class="tutorial-content">
+            <h3 class="tutorial-title">FlClash macOS 使用教程</h3>
+            <p class="tutorial-description">安装 FlClash、导入订阅、选择节点并测试连接。</p>
+            <a class="tutorial-btn" href="{{ url_for('mac_tutorial') }}">开始学习</a>
+        </div>
+    </article>
 </section>
 {% endblock %}
