@@ -15,7 +15,7 @@
     .mac-guide li + li { margin-top: 6px; }
     .mac-guide nav li + li { margin-top: 0; }
     .mac-guide p + p, .mac-guide ol + p { margin-top: 10px; }
-    .mac-guide .guide-images { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 16px; }
+    .mac-guide .guide-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 16px; }
     .guide-zoom { display: block; max-width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
     .guide-image { display: block; position: relative; }
     .guide-image img { display: block; width: 100%; height: auto; border-radius: 8px; }
@@ -80,7 +80,7 @@
             <li><a href="#install">安装和首次打开</a></li>
             <li><a href="#subscription">导入订阅</a></li>
             <li><a href="#connect">选择节点并连接</a></li>
-            <li><a href="#troubleshoot">排查连接问题</a></li>
+            <li><a href="#troubleshoot">设置 Wi‑Fi 代理</a></li>
         </ul>
     </nav>
 
@@ -130,13 +130,18 @@
     </section>
 
     <section id="troubleshoot">
-        <h2>4. 排查连接问题</h2>
+        <h2>4. 设置 Wi‑Fi 代理</h2>
         <p>如果 FlClash 已启动且开启了系统代理，但浏览器仍无法连接，可检查 macOS 的 Wi‑Fi 代理设置。</p>
         <ol>
-            <li>打开「系统设置 → Wi‑Fi」，点击当前网络旁的「详细信息」，再选择「代理」。</li>
-            <li>检查网页代理（HTTP）和安全网页代理（HTTPS）。如需手动启用，服务器填 <code>127.0.0.1</code>，端口填 FlClash「工具 → 基本配置」里显示的端口。原稿以 <code>7890</code> 为例。</li>
+            <li>打开「系统设置 → Wi‑Fi」，点击当前网络旁的「详细信息」，再从左侧选择「代理」。</li>
+            <li>如需手动设置，开启「网页代理（HTTP）」和「安全网页代理（HTTPS）」，两项的服务器都填 <code>127.0.0.1</code>，端口填 FlClash「工具 → 基本配置」里显示的端口。原稿以 <code>7890</code> 为例。</li>
             <li>保存后回到浏览器重试。停止使用 FlClash 时，关闭手动设置的代理。</li>
         </ol>
+        <div class="guide-images">
+            {{ screenshot('wifi-details', '打开当前 Wi‑Fi 网络的详细信息') }}
+            {{ screenshot('wifi-proxy-menu', '在左侧选择「代理」') }}
+            {{ screenshot('wifi-proxy-fields', '填写 HTTP 和 HTTPS 代理的服务器与端口') }}
+        </div>
     </section>
 </article>
 <dialog class="guide-preview" aria-labelledby="guide-preview-title">
