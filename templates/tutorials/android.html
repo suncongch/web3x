@@ -1,0 +1,62 @@
+{% extends "tutorials/guide.html" %}
+
+{% block guide_content %}
+    <h1>{{ guide_title }}</h1>
+    <p>在安卓设备上导入 FlClash 订阅、选择节点并启动连接。</p>
+    <nav aria-label="教程目录">
+        <ul>
+            <li><a href="#subscription">导入订阅</a></li>
+            <li><a href="#nodes">设置 IPv6 和选择节点</a></li>
+            <li><a href="#connect">启动连接</a></li>
+            <li><a href="#refresh">更新配置</a></li>
+        </ul>
+    </nav>
+
+    <section id="subscription">
+        <h2>1. 导入订阅</h2>
+        <ol>
+            <li>从 <a href="{{ url_for('home') }}#subscription-heading">Web3X 主页的订阅管理</a>复制 FlClash 订阅链接，也可以使用客服消息中的订阅链接。</li>
+            <li>打开 FlClash，在底部进入「配置」，点右下角的「＋」，选择「URL」。</li>
+            <li>粘贴订阅链接并点「提交」。导入成功后，点配置卡片选中该配置。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('profiles', '进入「配置」并点右下角的加号') }}
+            {{ screenshot('add-profile', '选择 URL 导入') }}
+            {{ screenshot('import-url', '粘贴订阅链接并提交') }}
+        </div>
+    </section>
+
+    <section id="nodes">
+        <h2>2. 设置 IPv6 和选择节点</h2>
+        <ol>
+            <li>如果订阅提供 IPv6 节点且当前网络支持 IPv6，在「工具 → 基本配置」中开启 IPv6。</li>
+            <li>进入「代理」，点右下角的测速按钮。在「节点选择」中选一个有延迟数值、延迟较低的节点。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('ipv6', '基本配置中的 IPv6 开关') }}
+            {{ screenshot('test-nodes', '在代理列表中测速') }}
+            {{ screenshot('select-node', '选择一个延迟较低的节点') }}
+        </div>
+    </section>
+
+    <section id="connect">
+        <h2>3. 启动连接</h2>
+        <ol>
+            <li>返回「仪表盘」，点右下角的启动按钮。如果安卓弹出 VPN 连接请求，确认后继续。</li>
+            <li>按钮出现运行计时后，用浏览器打开网页测试连接。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('start', '在仪表盘启动连接') }}
+            {{ screenshot('running', '运行计时表示连接已启动') }}
+        </div>
+    </section>
+
+    <section id="refresh">
+        <h2>4. 更新配置</h2>
+        <p>如果所有节点都不可用，回到「配置」，打开当前订阅卡片的菜单并选择「更新」。更新完成后，到「代理」页面重新测速。</p>
+        <div class="guide-images">
+            {{ screenshot('profile-menu', '打开当前订阅的配置菜单') }}
+            {{ screenshot('refresh-profile', '等待配置更新完成') }}
+        </div>
+    </section>
+{% endblock %}

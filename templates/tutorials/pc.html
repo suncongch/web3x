@@ -1,0 +1,54 @@
+{% extends "tutorials/guide.html" %}
+
+{% block guide_content %}
+    <h1>{{ guide_title }}</h1>
+    <p>在 Windows 上导入 FlClash 订阅、选择节点并启动系统代理。</p>
+    <nav aria-label="教程目录">
+        <ul>
+            <li><a href="#subscription">导入订阅</a></li>
+            <li><a href="#nodes">测速和选择节点</a></li>
+            <li><a href="#connect">启动并测试连接</a></li>
+        </ul>
+    </nav>
+
+    <section id="subscription">
+        <h2>1. 导入订阅</h2>
+        <ol>
+            <li>从 <a href="{{ url_for('home') }}#subscription-heading">Web3X 主页的订阅管理</a>复制 FlClash 订阅链接，也可以使用客服消息中的订阅链接。</li>
+            <li>打开 FlClash，从左侧进入「配置」，点击右下角的「＋」，选择「URL」。</li>
+            <li>在导入窗口中粘贴完整订阅链接并点击「提交」。返回配置列表，点击刚导入的配置卡片。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('dashboard', '从左侧进入「配置」') }}
+            {{ screenshot('profiles', '点击右下角的加号') }}
+            {{ screenshot('add-profile', '在添加配置中选择 URL') }}
+            {{ screenshot('url-option', '打开 URL 导入窗口') }}
+            {{ screenshot('import-url', '粘贴订阅链接并提交') }}
+            {{ screenshot('select-profile', '选中刚导入的配置') }}
+        </div>
+    </section>
+
+    <section id="nodes">
+        <h2>2. 测速和选择节点</h2>
+        <ol>
+            <li>打开左侧的「代理」，点击右下角的测速按钮。</li>
+            <li>在「节点选择」中选一个有延迟数值的节点。原稿建议优先测试新加坡和日本节点，以当前测速结果为准。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('test-nodes', '点击右下角的测速按钮') }}
+            {{ screenshot('select-node', '选择一个延迟较低的节点') }}
+        </div>
+    </section>
+
+    <section id="connect">
+        <h2>3. 启动并测试连接</h2>
+        <ol>
+            <li>返回「仪表盘」，开启「系统代理」，点击右下角的启动按钮。</li>
+            <li>出现运行计时后，在浏览器中打开网页测试连接。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('start', '在仪表盘启动 FlClash') }}
+            {{ screenshot('running', '出现运行计时后测试连接') }}
+        </div>
+    </section>
+{% endblock %}

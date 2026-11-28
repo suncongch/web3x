@@ -846,14 +846,21 @@ def tutorial():
         return redirect(url_for('login'))
     return render_template('tutorial.html', username=session.get('username'))
 
-@app.route('/tutorial/mac')
-def mac_tutorial():
+@app.route('/tutorial/mac', defaults={'platform': 'mac'})
+@app.route('/tutorial/<any(android,pc):platform>')
+def platform_tutorial(platform):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    annotations_path = Path(app.root_path) / 'data' / 'mac_tutorial_annotations.json'
+    titles = {
+        'mac': 'FlClash macOS 使用教程',
+        'android': 'FlClash 安卓使用教程',
+        'pc': 'FlClash Windows 使用教程',
+    }
+    annotations_path = Path(app.root_path) / 'data' / f'{platform}_tutorial_annotations.json'
     with annotations_path.open(encoding='utf-8') as source:
         annotations = json.load(source)
-    return render_template('tutorials/mac.html', username=session.get('username'), annotations=annotations)
+    return render_template(f'tutorials/{platform}.html', username=session.get('username'),
+                           annotations=annotations, platform=platform, guide_title=titles[platform])
 
 
 @app.route('/support')

@@ -49,3 +49,6 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Tutorial source decks
+/keyNote/

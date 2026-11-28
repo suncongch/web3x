@@ -10,6 +10,8 @@
         color: #2d3748;
     }
 
+    .tutorial-category + .tutorial-category { margin-top: 24px; }
+
     .category-title {
         margin-bottom: 20px;
         padding-bottom: 10px;
@@ -84,15 +86,21 @@
 
 {% block content %}
 <h1 class="section-title">📚 学习教程</h1>
-<section aria-labelledby="mac-tutorial-title">
-    <h2 id="mac-tutorial-title" class="category-title">Mac 教程</h2>
+{% for platform, category, icon, system in [
+    ('mac', 'Mac 教程', '💻', 'macOS'),
+    ('android', '安卓教程', '📱', '安卓'),
+    ('pc', 'PC 教程', '🖥️', 'Windows')
+] %}
+<section class="tutorial-category" aria-labelledby="{{ platform }}-tutorial-title">
+    <h2 id="{{ platform }}-tutorial-title" class="category-title">{{ category }}</h2>
     <article class="tutorial-card">
-        <div class="tutorial-icon" aria-hidden="true">💻</div>
+        <div class="tutorial-icon" aria-hidden="true">{{ icon }}</div>
         <div class="tutorial-content">
-            <h3 class="tutorial-title">FlClash macOS 使用教程</h3>
-            <p class="tutorial-description">安装 FlClash、导入订阅、选择节点并测试连接。</p>
-            <a class="tutorial-btn" href="{{ url_for('mac_tutorial') }}">开始学习</a>
+            <h3 class="tutorial-title">FlClash {{ system }} 使用教程</h3>
+            <p class="tutorial-description">导入订阅、选择节点并测试连接。</p>
+            <a class="tutorial-btn" href="{{ url_for('platform_tutorial', platform=platform) }}">开始学习</a>
         </div>
     </article>
 </section>
+{% endfor %}
 {% endblock %}

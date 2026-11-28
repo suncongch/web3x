@@ -1,0 +1,185 @@
+{
+  "profiles": {
+    "width": 1080,
+    "height": 1920,
+    "arrows": [
+      {
+        "from": [
+          74,
+          79
+        ],
+        "to": [
+          91,
+          87
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "add-profile": {
+    "width": 1080,
+    "height": 1920,
+    "arrows": [
+      {
+        "from": [
+          31,
+          27
+        ],
+        "to": [
+          10,
+          15
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "import-url": {
+    "width": 1080,
+    "height": 1920,
+    "arrows": [
+      {
+        "from": [
+          61,
+          68
+        ],
+        "to": [
+          76,
+          58
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "at": [
+          50,
+          39
+        ],
+        "text": "链接在消息里"
+      }
+    ]
+  },
+  "ipv6": {
+    "width": 614,
+    "height": 1500,
+    "arrows": [
+      {
+        "from": [
+          70,
+          74
+        ],
+        "to": [
+          91,
+          64
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "test-nodes": {
+    "width": 1080,
+    "height": 2640,
+    "arrows": [
+      {
+        "from": [
+          64,
+          76
+        ],
+        "to": [
+          88,
+          86
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "select-node": {
+    "width": 614,
+    "height": 1500,
+    "arrows": [
+      {
+        "from": [
+          75,
+          47
+        ],
+        "to": [
+          24,
+          36
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "at": [
+          50,
+          74
+        ],
+        "text": "选择延迟较低的节点"
+      }
+    ]
+  },
+  "start": {
+    "width": 844,
+    "height": 2063,
+    "arrows": [
+      {
+        "from": [
+          69,
+          75
+        ],
+        "to": [
+          92,
+          86
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "running": {
+    "width": 614,
+    "height": 1500,
+    "arrows": [
+      {
+        "from": [
+          61,
+          75
+        ],
+        "to": [
+          81,
+          86
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "at": [
+          50,
+          68
+        ],
+        "text": "出现计时表示已启动"
+      }
+    ]
+  },
+  "profile-menu": {
+    "width": 614,
+    "height": 1500,
+    "arrows": [
+      {
+        "from": [
+          68,
+          25
+        ],
+        "to": [
+          92,
+          14
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "refresh-profile": {
+    "width": 614,
+    "height": 1500,
+    "arrows": [],
+    "labels": []
+  }
+}

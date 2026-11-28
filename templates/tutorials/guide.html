@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ guide_title }} - Web3X{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tutorial-guide { max-width: 880px; color: #2d3748; line-height: 1.65; }
+    .tutorial-guide a { color: #4c51bf; text-underline-offset: 3px; }
+    .tutorial-guide h1 { margin: 12px 0 6px; line-height: 1.25; }
+    .tutorial-guide nav { margin: 24px 0; }
+    .tutorial-guide nav ul { display: flex; flex-wrap: wrap; gap: 8px 20px; list-style: none; }
+    .tutorial-guide section { margin: 20px 0; padding: clamp(16px, 4vw, 28px); background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .tutorial-guide h2 { margin-bottom: 10px; line-height: 1.35; }
+    .tutorial-guide ol { padding-left: 1.5em; }
+    .tutorial-guide li + li { margin-top: 6px; }
+    .tutorial-guide nav li + li { margin-top: 0; }
+    .tutorial-guide p + p, .tutorial-guide ol + p { margin-top: 10px; }
+    .tutorial-guide .guide-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 16px; }
+    .guide-zoom {
+        --guide-image-height: clamp(160px, 35vw, 240px);
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: var(--guide-image-height);
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: #f1f5f9;
+        cursor: zoom-in;
+    }
+    .guide-zoom .guide-image { width: min(100%, calc(var(--guide-image-height) * var(--guide-image-ratio))); }
+    .guide-image { display: block; position: relative; }
+    .guide-image img { display: block; width: 100%; height: auto; border-radius: 8px; }
+    .guide-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .guide-overlay line { stroke: #ff0000; }
+    .guide-overlay text { fill: #ff0000; stroke: white; paint-order: stroke; font-weight: 700; }
+    .guide-preview { margin: auto; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: 12px; border: 0; border-radius: 12px; }
+    .guide-preview::backdrop { background: rgb(15 23 42 / 80%); }
+    .guide-preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .guide-preview-toolbar button { padding: 6px 12px; cursor: pointer; }
+    .guide-preview .guide-image { width: var(--preview-width); margin: auto; }
+    .tutorial-guide figcaption { margin-top: 6px; font-size: .875rem; color: #4a5568; }
+</style>
+{% endblock %}
+
+{% macro screenshot(file, caption) %}
+{% set image = annotations[file] %}
+<figure>
+    <button type="button" class="guide-zoom" aria-haspopup="dialog" aria-label="查看大图：{{ caption }}">
+        <span class="guide-image" style="--guide-image-ratio: {{ image.width / image.height }}">
+            <img src="{{ url_for('static', filename='tutorial/' ~ platform ~ '/' ~ file ~ '.webp') }}" alt="{{ caption }}"
+                 width="{{ image.width }}" height="{{ image.height }}" loading="lazy">
+            <svg class="guide-overlay" viewBox="0 0 {{ image.width }} {{ image.height }}" aria-hidden="true">
+                {% for arrow in image.arrows %}
+                <line x1="{{ arrow['from'][0] }}%" y1="{{ arrow['from'][1] }}%"
+                      x2="{{ arrow.to[0] }}%" y2="{{ arrow.to[1] }}%"
+                      stroke-width="{{ image.width * 0.005 }}" marker-end="url(#guide-arrowhead)" />
+                {% endfor %}
+                {% for label in image.labels %}
+                <text x="{{ label.at[0] }}%" y="{{ label.at[1] }}%" text-anchor="middle" dominant-baseline="central"
+                      font-size="{{ image.width * 0.041 }}"
+                      stroke-width="{{ image.width * 0.002 }}">
+                    {% set lines = label.text.splitlines() %}
+                    {% for line in lines %}
+                    <tspan x="{{ label.at[0] }}%" dy="{{ -(lines|length - 1) * 0.55 if loop.first else 1.1 }}em">{{ line }}</tspan>
+                    {% endfor %}
+                </text>
+                {% endfor %}
+            </svg>
+        </span>
+    </button>
+    <figcaption>{{ caption }}</figcaption>
+</figure>
+{% endmacro %}
+
+{% block content %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <marker id="guide-arrowhead" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="4" markerHeight="4" orient="auto">
+            <path d="M0 0 L10 5 L0 10 Z" fill="#ff0000" />
+        </marker>
+    </defs>
+</svg>
+<article class="tutorial-guide">
+    <a href="{{ url_for('tutorial') }}">← 全部教程</a>
+    {% block guide_content %}{% endblock %}
+</article>
+<dialog class="guide-preview" aria-labelledby="guide-preview-title">
+    <div class="guide-preview-toolbar">
+        <h2 id="guide-preview-title"></h2>
+        <form method="dialog">
+            <button type="submit" autofocus>关闭</button>
+        </form>
+    </div>
+    <div class="guide-preview-content"></div>
+</dialog>
+<script>
+    const guide = document.querySelector('.tutorial-guide');
+    const preview = document.querySelector('.guide-preview');
+    const previewTitle = document.getElementById('guide-preview-title');
+    const previewContent = preview.querySelector('.guide-preview-content');
+
+    guide.addEventListener('click', (event) => {
+        const button = event.target.closest('.guide-zoom');
+        if (!button) return;
+
+        const image = button.querySelector('.guide-image').cloneNode(true);
+        const picture = image.querySelector('img');
+        picture.loading = 'eager';
+        const width = Number(picture.getAttribute('width'));
+        const ratio = width / Number(picture.getAttribute('height'));
+        image.style.setProperty('--preview-width', `min(${width}px, calc(100vw - 48px), calc((100dvh - 110px) * ${ratio}))`);
+        previewTitle.textContent = picture.alt;
+        previewContent.replaceChildren(image);
+        preview.showModal();
+    });
+
+    preview.addEventListener('click', (event) => {
+        if (event.target !== preview) return;
+        const bounds = preview.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right ||
+            event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            preview.close();
+        }
+    });
+
+    preview.addEventListener('close', () => previewContent.replaceChildren());
+</script>
+{% endblock %}
