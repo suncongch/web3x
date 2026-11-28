@@ -855,26 +855,52 @@ def is_software_download(path):
     )
 
 
+SOFTWARE_DOWNLOAD_PLATFORMS = {
+    'android': 'Android',
+    'pc': 'PC（Windows）',
+    'mac-intel': 'Mac（Intel 芯片）',
+    'mac-apple-silicon': 'Mac（Apple 芯片，M 系列）',
+}
+
+
+def list_software_downloads(directory):
+    if directory.is_symlink() or not directory.is_dir():
+        return []
+    return sorted(
+        (path.name for path in directory.iterdir() if is_software_download(path)),
+        key=str.casefold,
+    )
+
+
 @app.route('/downloads')
 def software_downloads():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     directory = Path(app.root_path) / 'downloads'
-    files = sorted(
-        (path.name for path in directory.iterdir() if is_software_download(path)),
-        key=str.casefold,
-    ) if directory.is_dir() else []
-    return render_template('downloads.html', username=session.get('username'), files=files)
+    groups = [
+        (platform, label, list_software_downloads(directory / platform))
+        for platform, label in SOFTWARE_DOWNLOAD_PLATFORMS.items()
+    ]
+    legacy_files = list_software_downloads(directory)
+    if legacy_files:
+        groups.append((None, '其他软件', legacy_files))
+    return render_template('downloads.html', username=session.get('username'), groups=groups)
 
 
-@app.route('/downloads/<filename>')
-def download_software(filename):
+@app.route('/downloads/<filename>', defaults={'platform': None})
+@app.route('/downloads/<platform>/<filename>')
+def download_software(filename, platform):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     if Path(filename).name != filename:
         abort(404)
-    path = Path(app.root_path) / 'downloads' / filename
-    if not is_software_download(path):
+    directory = Path(app.root_path) / 'downloads'
+    if platform is not None:
+        if platform not in SOFTWARE_DOWNLOAD_PLATFORMS:
+            abort(404)
+        directory /= platform
+    path = directory / filename
+    if directory.is_symlink() or not is_software_download(path):
         abort(404)
     return send_file(path, as_attachment=True)
 

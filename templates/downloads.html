@@ -4,7 +4,9 @@
 
 {% block extra_css %}
 <style>
-    .download-list { display: grid; gap: 12px; margin-top: 20px; list-style: none; }
+    .download-group { margin-top: 24px; }
+    .download-group h2 { font-size: 20px; }
+    .download-list { display: grid; gap: 12px; margin-top: 12px; list-style: none; }
     .download-list li {
         display: flex;
         align-items: center;
@@ -30,12 +32,15 @@
 
 {% block content %}
 <h1>软件下载</h1>
+{% for platform, label, files in groups %}
+<section class="download-group">
+<h2>{{ label }}</h2>
 {% if files %}
 <ul class="download-list">
     {% for filename in files %}
     <li>
         <span class="download-name">{{ filename }}</span>
-        <a class="download-link" href="{{ url_for('download_software', filename=filename) }}"
+        <a class="download-link" href="{{ url_for('download_software', platform=platform, filename=filename) }}"
            aria-label="下载 {{ filename }}">下载</a>
     </li>
     {% endfor %}
@@ -43,4 +48,6 @@
 {% else %}
 <p class="download-empty">暂无可下载的软件。</p>
 {% endif %}
+</section>
+{% endfor %}
 {% endblock %}
