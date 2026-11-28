@@ -1,0 +1,79 @@
+{% extends "tutorials/guide.html" %}
+
+{% block guide_content %}
+    <h1>{{ guide_title }}</h1>
+    <p>在 iPhone 上安装 Shadowrocket（小火箭）、导入订阅并连接。</p>
+
+    <nav aria-label="教程目录">
+        <ul>
+            <li><a href="#install">安装并打开</a></li>
+            <li><a href="#subscription">导入订阅</a></li>
+            <li><a href="#connect">测速并连接</a></li>
+            <li><a href="#configuration">导入配置文件</a></li>
+        </ul>
+    </nav>
+
+    <section id="install">
+        <h2>1. 安装并打开 Shadowrocket</h2>
+        <p>打开 App Store，切换到「搜索」，输入 Shadowrocket。找到小火箭图标对应的应用，安装后打开。</p>
+        <div class="guide-images">
+            {{ screenshot('step-8', '在 App Store 底部打开「搜索」') }}
+            {{ screenshot('step-9', '点击搜索框') }}
+            {{ screenshot('step-10', '在结果中找到 Shadowrocket') }}
+            {{ screenshot('step-11', '安装后打开 Shadowrocket') }}
+            {{ screenshot('step-12', '主屏幕上的 App Store 图标') }}
+        </div>
+    </section>
+
+    <section id="subscription">
+        <h2>2. 导入订阅</h2>
+        <ol>
+            <li>在 <a href="{{ url_for('home') }}#subscription-heading">Web3X 主页的订阅管理</a>点击「查看订阅」，复制 Shadowrocket 订阅链接。也可使用客服消息里提供的链接。</li>
+            <li>在小火箭首页点击右上角的「＋」，进入「类型」并选择「Subscribe」。</li>
+            <li>在 URL 一栏粘贴完整链接，点击右上角「保存」。返回首页查看节点列表。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('step-13', '点击首页右上角的加号') }}
+            {{ screenshot('step-14', '点击添加节点页面的「类型」') }}
+            {{ screenshot('step-15', '选择「Subscribe」') }}
+            {{ screenshot('step-16', '找到 URL 输入栏') }}
+            {{ screenshot('step-17', '填写订阅链接并保存') }}
+            {{ screenshot('step-18', '回到首页查看已导入的节点') }}
+        </div>
+    </section>
+
+    <section id="connect">
+        <h2>3. 测速并连接</h2>
+        <ol>
+            <li>在首页运行「连通性测试」。如果节点列表未更新，先更新订阅再测速。</li>
+            <li>选一个有延迟数值且延迟较低的节点。原稿以日本和新加坡节点为例，实际以测速结果为准。</li>
+            <li>打开首页顶部的连接开关。如果 iOS 请求添加 VPN 配置，确认后继续，再打开网页测试连接。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('step-19', '查看连通性测试方式') }}
+            {{ screenshot('step-20', '回到首页查看节点列表') }}
+            {{ screenshot('step-21', '打开订阅操作菜单') }}
+            {{ screenshot('step-22', '对比节点延迟') }}
+            {{ screenshot('step-23', '选择一个节点') }}
+            {{ screenshot('step-24', '开启连接开关') }}
+        </div>
+    </section>
+
+    <section id="configuration">
+        <h2>4. 导入配置文件</h2>
+        <p>如需使用单独的规则配置，切换到「配置」，选择「从 URL 导入」，输入客服提供的配置文件链接并下载。下载后点配置文件，在菜单中选择「使用配置」，等待成功提示。</p>
+        <div class="guide-images">
+            {{ screenshot('step-25', '从底部进入「配置」') }}
+            {{ screenshot('step-26', '选择「从 URL 导入」') }}
+            {{ screenshot('step-27', '输入配置文件链接并下载') }}
+            {{ screenshot('step-28', '打开下载完成的配置文件') }}
+            {{ screenshot('step-29', '选择「使用配置」') }}
+            {{ screenshot('step-30', '确认操作成功') }}
+        </div>
+        <p>如果安装时切换过 App Store 账号，完成后可以回到 App Store 登录自己的账号。</p>
+        <div class="guide-images">
+            {{ screenshot('step-31', '回到 App Store') }}
+            {{ screenshot('step-32', '在账户页面切回自己的账号') }}
+        </div>
+    </section>
+{% endblock %}

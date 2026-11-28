@@ -86,17 +86,18 @@
 
 {% block content %}
 <h1 class="section-title">📚 学习教程</h1>
-{% for platform, category, icon, system in [
-    ('mac', 'Mac 教程', '💻', 'macOS'),
-    ('android', '安卓教程', '📱', '安卓'),
-    ('pc', 'PC 教程', '🖥️', 'Windows')
+{% for platform, category, icon, title in [
+    ('mac', 'Mac 教程', '💻', 'FlClash macOS 使用教程'),
+    ('android', '安卓教程', '📱', 'FlClash 安卓使用教程'),
+    ('pc', 'PC 教程', '🖥️', 'FlClash Windows 使用教程'),
+    ('ios', 'iOS 教程', '📱', 'Shadowrocket iOS 使用教程')
 ] %}
 <section class="tutorial-category" aria-labelledby="{{ platform }}-tutorial-title">
     <h2 id="{{ platform }}-tutorial-title" class="category-title">{{ category }}</h2>
     <article class="tutorial-card">
         <div class="tutorial-icon" aria-hidden="true">{{ icon }}</div>
         <div class="tutorial-content">
-            <h3 class="tutorial-title">FlClash {{ system }} 使用教程</h3>
+            <h3 class="tutorial-title">{{ title }}</h3>
             <p class="tutorial-description">导入订阅、选择节点并测试连接。</p>
             <a class="tutorial-btn" href="{{ url_for('platform_tutorial', platform=platform) }}">开始学习</a>
         </div>
