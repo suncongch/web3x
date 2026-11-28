@@ -845,6 +845,13 @@ def tutorial():
         return redirect(url_for('login'))
     return render_template('tutorial.html', username=session.get('username'))
 
+@app.route('/tutorial/mac')
+def mac_tutorial():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('tutorials/mac.html', username=session.get('username'))
+
+
 @app.route('/support')
 def support():
     if 'user_id' not in session:

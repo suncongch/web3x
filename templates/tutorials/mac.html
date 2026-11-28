@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}FlClash macOS 使用教程 - Web3X{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mac-guide { max-width: 880px; color: #2d3748; line-height: 1.65; }
+    .mac-guide a { color: #4c51bf; text-underline-offset: 3px; }
+    .mac-guide h1 { margin: 12px 0 6px; line-height: 1.25; }
+    .mac-guide nav { margin: 24px 0; }
+    .mac-guide nav ul { display: flex; flex-wrap: wrap; gap: 8px 20px; list-style: none; }
+    .mac-guide section { margin: 20px 0; padding: clamp(16px, 4vw, 28px); background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .mac-guide h2 { margin-bottom: 10px; line-height: 1.35; }
+    .mac-guide ol { padding-left: 1.5em; }
+    .mac-guide li + li { margin-top: 6px; }
+    .mac-guide nav li + li { margin-top: 0; }
+    .mac-guide p + p, .mac-guide ol + p { margin-top: 10px; }
+    .mac-guide .guide-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 16px; }
+    .mac-guide figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 8px; }
+    .mac-guide figcaption { margin-top: 6px; font-size: .875rem; color: #4a5568; }
+</style>
+{% endblock %}
+
+{% macro screenshot(file, caption) %}
+<figure>
+    <a href="{{ url_for('static', filename='tutorial/mac/' ~ file ~ '.webp') }}">
+        <img src="{{ url_for('static', filename='tutorial/mac/' ~ file ~ '.webp') }}" alt="查看大图：{{ caption }}" loading="lazy">
+    </a>
+    <figcaption>{{ caption }}</figcaption>
+</figure>
+{% endmacro %}
+
+{% block content %}
+<article class="mac-guide">
+    <a href="{{ url_for('tutorial') }}">← 全部教程</a>
+    <h1>FlClash macOS 使用教程</h1>
+    <p>安装 FlClash，导入 Web3X 订阅，选择节点并测试连接。</p>
+
+    <nav aria-label="教程目录">
+        <ul>
+            <li><a href="#install">安装和首次打开</a></li>
+            <li><a href="#subscription">导入订阅</a></li>
+            <li><a href="#connect">选择节点并连接</a></li>
+            <li><a href="#troubleshoot">排查连接问题</a></li>
+        </ul>
+    </nav>
+
+    <section id="install">
+        <h2>1. 安装和首次打开</h2>
+        <ol>
+            <li>双击 FlClash 安装包，将 FlClash 图标拖入 Applications（应用程序）文件夹。</li>
+            <li>关闭安装窗口，在访达的「应用程序」中双击 FlClash。</li>
+            <li>如果 macOS 提示无法验证应用，先确认安装包来自可信来源，再前往「系统设置 → 隐私与安全性」，找到 FlClash 提示并选择「仍要打开」。在确认窗口中再次选择「仍要打开」。</li>
+            <li>阅读 FlClash 首次启动时的免责声明，同意后进入仪表盘。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('install', '把 FlClash 拖入 Applications') }}
+            {{ screenshot('open-confirmation', 'macOS 的打开确认窗口') }}
+        </div>
+    </section>
+
+    <section id="subscription">
+        <h2>2. 导入订阅</h2>
+        <ol>
+            <li>在 <a href="{{ url_for('home') }}#subscription-heading">Web3X 主页的订阅管理</a>中点击「查看订阅」，复制 FlClash 订阅链接。也可以使用客服消息里提供的订阅链接。</li>
+            <li>在 FlClash 左侧打开「配置」，点击右下角的「＋」，选择「URL」。</li>
+            <li>粘贴链接并点击「提交」。导入完成后，点击列表中的配置卡片选用该配置。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('profiles', '在配置页面点击右下角的加号') }}
+            {{ screenshot('add-profile', '选择 URL 导入方式') }}
+            {{ screenshot('import-url', '粘贴订阅链接并提交') }}
+        </div>
+    </section>
+
+    <section id="connect">
+        <h2>3. 选择节点并连接</h2>
+        <ol>
+            <li>如果订阅提供 IPv6 节点且当前网络支持 IPv6，在「工具 → 基本配置」中开启 IPv6。</li>
+            <li>打开「代理」页面，点击右下角的测速按钮，在「节点选择」中选一个有延迟数值的节点。</li>
+            <li>返回「仪表盘」，启用「系统代理」，点击右下角的启动按钮。出现运行计时后，在浏览器中打开网页测试连接。</li>
+        </ol>
+        <div class="guide-images">
+            {{ screenshot('ipv6', '基本配置中的 IPv6 开关') }}
+            {{ screenshot('nodes', '代理页面的节点列表和测速按钮') }}
+        </div>
+    </section>
+
+    <section id="troubleshoot">
+        <h2>4. 排查连接问题</h2>
+        <p>如果 FlClash 已启动且开启了系统代理，但浏览器仍无法连接，可检查 macOS 的 Wi‑Fi 代理设置。</p>
+        <ol>
+            <li>打开「系统设置 → Wi‑Fi」，点击当前网络旁的「详细信息」，再选择「代理」。</li>
+            <li>检查网页代理（HTTP）和安全网页代理（HTTPS）。如需手动启用，服务器填 <code>127.0.0.1</code>，端口填 FlClash「工具 → 基本配置」里显示的端口。原稿以 <code>7890</code> 为例。</li>
+            <li>保存后回到浏览器重试。停止使用 FlClash 时，关闭手动设置的代理。</li>
+        </ol>
+    </section>
+</article>
+{% endblock %}
