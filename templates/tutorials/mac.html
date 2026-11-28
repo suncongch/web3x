@@ -16,21 +16,60 @@
     .mac-guide nav li + li { margin-top: 0; }
     .mac-guide p + p, .mac-guide ol + p { margin-top: 10px; }
     .mac-guide .guide-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 16px; }
-    .mac-guide figure img { display: block; width: auto; max-width: 100%; height: auto; border-radius: 8px; }
+    .guide-zoom { display: block; max-width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+    .guide-image { display: block; position: relative; }
+    .guide-image img { display: block; width: 100%; height: auto; border-radius: 8px; }
+    .guide-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .guide-overlay line { stroke: #ff0000; }
+    .guide-overlay text { fill: #ff0000; stroke: white; paint-order: stroke; font-weight: 700; }
+    .guide-preview { margin: auto; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: 12px; border: 0; border-radius: 12px; }
+    .guide-preview::backdrop { background: rgb(15 23 42 / 80%); }
+    .guide-preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .guide-preview-toolbar button { padding: 6px 12px; cursor: pointer; }
+    .guide-preview .guide-image { width: var(--preview-width); margin: auto; }
     .mac-guide figcaption { margin-top: 6px; font-size: .875rem; color: #4a5568; }
 </style>
 {% endblock %}
 
 {% macro screenshot(file, caption) %}
+{% set image = annotations[file] %}
 <figure>
-    <a href="{{ url_for('static', filename='tutorial/mac/' ~ file ~ '.webp') }}">
-        <img src="{{ url_for('static', filename='tutorial/mac/' ~ file ~ '.webp') }}" alt="查看大图：{{ caption }}" loading="lazy">
-    </a>
+    <button type="button" class="guide-zoom" aria-haspopup="dialog" aria-label="查看大图：{{ caption }}">
+        <span class="guide-image">
+            <img src="{{ url_for('static', filename='tutorial/mac/' ~ file ~ '.webp') }}" alt="{{ caption }}"
+                 width="{{ image.width }}" height="{{ image.height }}" loading="lazy">
+            <svg class="guide-overlay" viewBox="0 0 {{ image.width }} {{ image.height }}" aria-hidden="true">
+                {% for arrow in image.arrows %}
+                <line x1="{{ arrow['from'][0] }}%" y1="{{ arrow['from'][1] }}%"
+                      x2="{{ arrow.to[0] }}%" y2="{{ arrow.to[1] }}%"
+                      stroke-width="{{ image.width * 0.005 }}" marker-end="url(#guide-arrowhead)" />
+                {% endfor %}
+                {% for label in image.labels %}
+                <text x="{{ label.at[0] }}%" y="{{ label.at[1] }}%" text-anchor="middle" dominant-baseline="central"
+                      font-size="{{ image.width * (0.068 if file == 'running-timer' else 0.041) }}"
+                      stroke-width="{{ image.width * 0.002 }}">
+                    {% set lines = label.text.splitlines() %}
+                    {% for line in lines %}
+                    <tspan x="{{ label.at[0] }}%" dy="{{ -(lines|length - 1) * 0.55 if loop.first else 1.1 }}em">{{ line }}</tspan>
+                    {% endfor %}
+                </text>
+                {% endfor %}
+            </svg>
+        </span>
+    </button>
     <figcaption>{{ caption }}</figcaption>
 </figure>
 {% endmacro %}
 
 {% block content %}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <marker id="guide-arrowhead" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="4" markerHeight="4" orient="auto">
+            <path d="M0 0 L10 5 L0 10 Z" fill="#ff0000" />
+        </marker>
+    </defs>
+</svg>
 <article class="mac-guide">
     <a href="{{ url_for('tutorial') }}">← 全部教程</a>
     <h1>FlClash macOS 使用教程</h1>
@@ -98,4 +137,45 @@
         </ol>
     </section>
 </article>
+<dialog class="guide-preview" aria-labelledby="guide-preview-title">
+    <div class="guide-preview-toolbar">
+        <h2 id="guide-preview-title"></h2>
+        <form method="dialog">
+            <button type="submit" autofocus>关闭</button>
+        </form>
+    </div>
+    <div class="guide-preview-content"></div>
+</dialog>
+<script>
+    const guide = document.querySelector('.mac-guide');
+    const preview = document.querySelector('.guide-preview');
+    const previewTitle = document.getElementById('guide-preview-title');
+    const previewContent = preview.querySelector('.guide-preview-content');
+
+    guide.addEventListener('click', (event) => {
+        const button = event.target.closest('.guide-zoom');
+        if (!button) return;
+
+        const image = button.querySelector('.guide-image').cloneNode(true);
+        const picture = image.querySelector('img');
+        picture.loading = 'eager';
+        const width = Number(picture.getAttribute('width'));
+        const ratio = width / Number(picture.getAttribute('height'));
+        image.style.setProperty('--preview-width', `min(${width}px, calc(100vw - 48px), calc((100dvh - 110px) * ${ratio}))`);
+        previewTitle.textContent = picture.alt;
+        previewContent.replaceChildren(image);
+        preview.showModal();
+    });
+
+    preview.addEventListener('click', (event) => {
+        if (event.target !== preview) return;
+        const bounds = preview.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right ||
+            event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            preview.close();
+        }
+    });
+
+    preview.addEventListener('close', () => previewContent.replaceChildren());
+</script>
 {% endblock %}

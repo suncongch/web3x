@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import gzip
+import json
 import logging
 import os
 import re
@@ -849,7 +850,10 @@ def tutorial():
 def mac_tutorial():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('tutorials/mac.html', username=session.get('username'))
+    annotations_path = Path(app.root_path) / 'data' / 'mac_tutorial_annotations.json'
+    with annotations_path.open(encoding='utf-8') as source:
+        annotations = json.load(source)
+    return render_template('tutorials/mac.html', username=session.get('username'), annotations=annotations)
 
 
 @app.route('/support')
