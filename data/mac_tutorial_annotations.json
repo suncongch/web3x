@@ -182,5 +182,19 @@
         "text": "系统开关\n有计时就是打开"
       }
     ]
+  },
+  "privacy-security": {
+    "width": 1430,
+    "height": 1250,
+    "arrows": [],
+    "labels": [
+      {
+        "at": [
+          50,
+          44.14
+        ],
+        "text": "打开设置"
+      }
+    ]
   }
 }
