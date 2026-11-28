@@ -16,7 +16,19 @@
     .mac-guide nav li + li { margin-top: 0; }
     .mac-guide p + p, .mac-guide ol + p { margin-top: 10px; }
     .mac-guide .guide-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-top: 16px; }
-    .guide-zoom { display: block; max-width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+    .guide-zoom {
+        --guide-image-height: clamp(160px, 35vw, 240px);
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: var(--guide-image-height);
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: #f1f5f9;
+        cursor: zoom-in;
+    }
+    .guide-zoom .guide-image { width: min(100%, calc(var(--guide-image-height) * var(--guide-image-ratio))); }
     .guide-image { display: block; position: relative; }
     .guide-image img { display: block; width: 100%; height: auto; border-radius: 8px; }
     .guide-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -35,7 +47,7 @@
 {% set image = annotations[file] %}
 <figure>
     <button type="button" class="guide-zoom" aria-haspopup="dialog" aria-label="查看大图：{{ caption }}">
-        <span class="guide-image">
+        <span class="guide-image" style="--guide-image-ratio: {{ image.width / image.height }}">
             <img src="{{ url_for('static', filename='tutorial/mac/' ~ file ~ '.webp') }}" alt="{{ caption }}"
                  width="{{ image.width }}" height="{{ image.height }}" loading="lazy">
             <svg class="guide-overlay" viewBox="0 0 {{ image.width }} {{ image.height }}" aria-hidden="true">
@@ -46,7 +58,7 @@
                 {% endfor %}
                 {% for label in image.labels %}
                 <text x="{{ label.at[0] }}%" y="{{ label.at[1] }}%" text-anchor="middle" dominant-baseline="central"
-                      font-size="{{ image.width * (0.068 if file == 'running-timer' else 0.041) }}"
+                      font-size="{{ image.width * 0.041 }}"
                       stroke-width="{{ image.width * 0.002 }}">
                     {% set lines = label.text.splitlines() %}
                     {% for line in lines %}
