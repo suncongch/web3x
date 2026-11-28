@@ -217,6 +217,7 @@
                 <li><a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}class="active"{% endif %}>🏠 主页</a></li>
                 <li><a href="{{ url_for('purchase') }}" {% if request.endpoint == 'purchase' %}class="active"{% endif %}>🛒 购买</a></li>
                 <li><a href="{{ url_for('tutorial') }}" {% if request.endpoint in ('tutorial', 'platform_tutorial') %}class="active"{% endif %}>📚 教程</a></li>
+                <li><a href="{{ url_for('software_downloads') }}" {% if request.endpoint == 'software_downloads' %}class="active"{% endif %}>📥 软件下载</a></li>
                 <li><a href="{{ url_for('support') }}" {% if request.endpoint == 'support' %}class="active"{% endif %}>💬 客服</a></li>
             </ul>
             <a href="{{ url_for('logout') }}" class="logout-btn">退出登录</a>

@@ -840,6 +840,45 @@ def purchase():
         return redirect(url_for('login'))
     return render_template('purchase.html', username=session.get('username'))
 
+SOFTWARE_DOWNLOAD_EXTENSIONS = (
+    '.apk', '.appimage', '.deb', '.dmg', '.exe', '.ipa', '.msi', '.msix',
+    '.pkg', '.rpm', '.zip', '.7z', '.rar', '.tar.gz', '.tar.xz',
+)
+
+
+def is_software_download(path):
+    return (
+        not path.name.startswith('.')
+        and path.name.lower().endswith(SOFTWARE_DOWNLOAD_EXTENSIONS)
+        and not path.is_symlink()
+        and path.is_file()
+    )
+
+
+@app.route('/downloads')
+def software_downloads():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    directory = Path(app.root_path) / 'downloads'
+    files = sorted(
+        (path.name for path in directory.iterdir() if is_software_download(path)),
+        key=str.casefold,
+    ) if directory.is_dir() else []
+    return render_template('downloads.html', username=session.get('username'), files=files)
+
+
+@app.route('/downloads/<filename>')
+def download_software(filename):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if Path(filename).name != filename:
+        abort(404)
+    path = Path(app.root_path) / 'downloads' / filename
+    if not is_software_download(path):
+        abort(404)
+    return send_file(path, as_attachment=True)
+
+
 @app.route('/tutorial')
 def tutorial():
     if 'user_id' not in session:
