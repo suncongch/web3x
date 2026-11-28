@@ -43,7 +43,9 @@
 </style>
 {% endblock %}
 
+{% set screenshots = namespace(number=0) %}
 {% macro screenshot(file, caption) %}
+{% set screenshots.number = screenshots.number + 1 %}
 {% set image = annotations[file] %}
 <figure>
     <button type="button" class="guide-zoom" aria-haspopup="dialog" aria-label="查看大图：{{ caption }}">
@@ -69,7 +71,7 @@
             </svg>
         </span>
     </button>
-    <figcaption>{{ caption }}</figcaption>
+    <figcaption>{{ screenshots.number }}. {{ caption }}</figcaption>
 </figure>
 {% endmacro %}
 
